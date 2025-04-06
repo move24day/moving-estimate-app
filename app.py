@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime
 
 # 로고 표시 (화면 좌측 상단)
-st.image("logo.jpg", width=450)
+st.image("logo.png", width=450)
 
 # --- 고객 기본정보 입력 ---
 st.header("📝 고객 기본 정보")
