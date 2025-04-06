@@ -19,7 +19,9 @@ with col2:
 moving_date = st.date_input("🚚 이사일")
 
 # 견적일 자동 표시 (현재시간)
-estimate_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+kst = pytz.timezone('Asia/Seoul')
+estimate_date = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
+
 
 # --- 작업 조건 입력 ---
 st.header("🏢 작업 조건")
