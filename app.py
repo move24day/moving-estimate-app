@@ -1,6 +1,18 @@
 import streamlit as st
 from datetime import datetime
 import pytz
+import base64
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.units import mm
+from io import BytesIO
+
+# 한글 폰트 등록
+pdfmetrics.registerFont(TTFont('NanumGothic', 'NanumGothic.ttf'))
 
 # 로고 표시 (화면 좌측 상단)
 st.image("logo.png", width=150)
@@ -75,7 +87,7 @@ additional_boxes = {"중대박스": 0, "옷박스": 0, "중박스": 0}
 
 for section, item_list in items.items():
     with st.expander(f"{section} 품목 선택"):
-        cols = st.columns(3)  # <-- 3열로 변경
+        cols = st.columns(3)
         items_list = list(item_list.items())
         third_len = len(items_list) // 3 + (len(items_list) % 3 > 0)
         for idx, (item, (volume, weight)) in enumerate(items_list):
@@ -92,6 +104,7 @@ for section, item_list in items.items():
                         additional_boxes["중박스"] += qty * 3
                     if item == "서랍장(5단)":
                         additional_boxes["중박스"] += qty * 5
+
 # 박스 부피 계산
 box_volumes = {"중대박스": 0.1875, "옷박스": 0.219, "중박스": 0.1}
 total_volume = sum(items[sec][item][0] * qty for sec in items for item, (qty, _) in selected_items.items() if item in items[sec])
@@ -146,3 +159,133 @@ if special_notes.strip():
 st.success(f"📐 총 부피: {total_volume:.2f} m³")
 st.success(f"🚛 추천 차량: {recommended_vehicle}")
 st.info(f"🧮 차량의 여유 공간: {remaining_space:.2f}%")
+
+# PDF 생성 함수
+def create_pdf():
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, topMargin=15*mm, bottomMargin=15*mm)
+    
+    # 스타일 설정
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='Korean', fontName='NanumGothic', fontSize=10, leading=12))
+    styles.add(ParagraphStyle(name='KoreanTitle', fontName='NanumGothic', fontSize=16, leading=20, alignment=1))
+    styles.add(ParagraphStyle(name='KoreanSubTitle', fontName='NanumGothic', fontSize=12, leading=14, alignment=0))
+    
+    # 문서 내용 구성
+    content = []
+    
+    # 제목
+    content.append(Paragraph("이사 견적서", styles['KoreanTitle']))
+    content.append(Spacer(1, 10*mm))
+    
+    # 고객 정보 테이블
+    customer_data = [
+        ["고객명", customer_name, "전화번호", customer_phone],
+        ["출발지", f"{from_location} ({from_floor} {from_method})", "도착지", f"{to_location} ({to_floor} {to_method})"],
+        ["견적일", estimate_date, "이사일", moving_date.strftime("%Y-%m-%d")]
+    ]
+    
+    t = Table(customer_data, colWidths=[40*mm, 50*mm, 40*mm, 50*mm])
+    t.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('BACKGROUND', (2, 0), (2, -1), colors.lightgrey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    content.append(t)
+    content.append(Spacer(1, 7*mm))
+    
+    # 품목 리스트 타이틀
+    content.append(Paragraph("선택한 품목 리스트", styles['KoreanSubTitle']))
+    content.append(Spacer(1, 3*mm))
+    
+    # 품목 테이블 생성
+    if selected_items:
+        item_data = [["품목", "수량", "단위"]]
+        for item, (qty, unit) in selected_items.items():
+            item_data.append([item, str(qty), unit])
+        
+        item_table = Table(item_data, colWidths=[110*mm, 30*mm, 30*mm])
+        item_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+        content.append(item_table)
+    else:
+        content.append(Paragraph("선택한 품목이 없습니다.", styles['Korean']))
+    
+    content.append(Spacer(1, 7*mm))
+    
+    # 추가 박스 정보
+    if any(additional_boxes.values()):
+        content.append(Paragraph("추가 필요 박스", styles['KoreanSubTitle']))
+        content.append(Spacer(1, 3*mm))
+        
+        box_data = [["박스 종류", "수량"]]
+        for box, count in additional_boxes.items():
+            if count > 0:
+                box_data.append([box, str(count)])
+        
+        box_table = Table(box_data, colWidths=[110*mm, 60*mm])
+        box_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+        content.append(box_table)
+        content.append(Spacer(1, 7*mm))
+    
+    # 견적 결과
+    content.append(Paragraph("견적 결과", styles['KoreanSubTitle']))
+    content.append(Spacer(1, 3*mm))
+    
+    result_data = [
+        ["총 부피", f"{total_volume:.2f} m³"],
+        ["추천 차량", recommended_vehicle],
+        ["차량 여유 공간", f"{remaining_space:.2f}%"]
+    ]
+    
+    result_table = Table(result_data, colWidths=[80*mm, 90*mm])
+    result_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    content.append(result_table)
+    content.append(Spacer(1, 7*mm))
+    
+    # 특이 사항
+    if special_notes.strip():
+        content.append(Paragraph("특이 사항", styles['KoreanSubTitle']))
+        content.append(Spacer(1, 3*mm))
+        content.append(Paragraph(special_notes, styles['Korean']))
+    
+    # PDF 문서 생성
+    doc.build(content)
+    return buffer
+
+# PDF 다운로드 버튼
+if st.button("PDF 견적서 다운로드"):
+    if customer_name and from_location and to_location:
+        pdf_buffer = create_pdf()
+        pdf_data = pdf_buffer.getvalue()
+        b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
+        
+        # 다운로드 링크 생성
+        pdf_filename = f"{customer_name}_이사견적서.pdf"
+        st.markdown(
+            f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{pdf_filename}">📥 PDF 견적서 다운로드</a>',
+            unsafe_allow_html=True
+        )
+        st.success("견적서가 생성되었습니다. 위 링크를 클릭하여 다운로드하세요.")
+    else:
+        st.error("고객명, 출발지, 도착지를 모두 입력해주세요.")
