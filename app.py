@@ -72,11 +72,11 @@ additional_boxes = {"중대박스": 0, "옷박스": 0, "중박스": 0}
 
 for section, item_list in items.items():
     with st.expander(f"{section} 품목 선택"):
-        cols = st.columns(2)
+        cols = st.columns(3)  # <-- 3열로 변경
         items_list = list(item_list.items())
-        half_len = len(items_list) // 2 + len(items_list) % 2
+        third_len = len(items_list) // 3 + (len(items_list) % 3 > 0)
         for idx, (item, (volume, weight)) in enumerate(items_list):
-            with cols[idx // half_len]:
+            with cols[idx // third_len]:
                 unit = "칸" if item == "장롱" else "개"
                 qty = st.number_input(f"{item}", min_value=0, step=1, key=f"{section}_{item}")
                 if qty > 0:
@@ -89,7 +89,6 @@ for section, item_list in items.items():
                         additional_boxes["중박스"] += qty * 3
                     if item == "서랍장(5단)":
                         additional_boxes["중박스"] += qty * 5
-
 # 박스 부피 계산
 box_volumes = {"중대박스": 0.1875, "옷박스": 0.219, "중박스": 0.1}
 total_volume = sum(items[sec][item][0] * qty for sec in items for item, (qty, _) in selected_items.items() if item in items[sec])
