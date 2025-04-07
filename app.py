@@ -6,16 +6,13 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.units import mm
 from io import BytesIO
 
-# 한글 폰트 등록
-pdfmetrics.registerFont(TTFont('NanumGothic', 'NanumGothic.ttf'))
-
 # 로고 표시 (화면 좌측 상단)
-st.image("logo.png", width=150)
+try:
+    st.image("logo.png", width=150)
+except:
+    st.write("로고 이미지를 찾을 수 없습니다.")
 
 # --- 고객 기본정보 입력 ---
 st.header("📝 고객 기본 정보")
@@ -160,34 +157,33 @@ st.success(f"📐 총 부피: {total_volume:.2f} m³")
 st.success(f"🚛 추천 차량: {recommended_vehicle}")
 st.info(f"🧮 차량의 여유 공간: {remaining_space:.2f}%")
 
-# PDF 생성 함수
+# PDF 생성 함수 - 기본 폰트 사용
 def create_pdf():
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, topMargin=15*mm, bottomMargin=15*mm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     
-    # 스타일 설정
+    # 기본 스타일 사용
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='Korean', fontName='NanumGothic', fontSize=10, leading=12))
-    styles.add(ParagraphStyle(name='KoreanTitle', fontName='NanumGothic', fontSize=16, leading=20, alignment=1))
-    styles.add(ParagraphStyle(name='KoreanSubTitle', fontName='NanumGothic', fontSize=12, leading=14, alignment=0))
+    title_style = styles['Title']
+    heading_style = styles['Heading2']
+    normal_style = styles['Normal']
     
     # 문서 내용 구성
     content = []
     
     # 제목
-    content.append(Paragraph("이사 견적서", styles['KoreanTitle']))
-    content.append(Spacer(1, 10*mm))
+    content.append(Paragraph("Moving Estimate", title_style))
+    content.append(Spacer(1, 20))
     
-    # 고객 정보 테이블
+    # 고객 정보 테이블 (영문+숫자로 구성)
     customer_data = [
-        ["고객명", customer_name, "전화번호", customer_phone],
-        ["출발지", f"{from_location} ({from_floor} {from_method})", "도착지", f"{to_location} ({to_floor} {to_method})"],
-        ["견적일", estimate_date, "이사일", moving_date.strftime("%Y-%m-%d")]
+        ["Customer", customer_name, "Phone", customer_phone],
+        ["From", f"{from_location} ({from_floor} {from_method})", "To", f"{to_location} ({to_floor} {to_method})"],
+        ["Estimate Date", estimate_date, "Moving Date", moving_date.strftime("%Y-%m-%d")]
     ]
     
-    t = Table(customer_data, colWidths=[40*mm, 50*mm, 40*mm, 50*mm])
+    t = Table(customer_data, colWidths=[80, 120, 80, 120])
     t.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
         ('BACKGROUND', (2, 0), (2, -1), colors.lightgrey),
@@ -195,21 +191,20 @@ def create_pdf():
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
     ]))
     content.append(t)
-    content.append(Spacer(1, 7*mm))
+    content.append(Spacer(1, 20))
     
     # 품목 리스트 타이틀
-    content.append(Paragraph("선택한 품목 리스트", styles['KoreanSubTitle']))
-    content.append(Spacer(1, 3*mm))
+    content.append(Paragraph("Selected Items", heading_style))
+    content.append(Spacer(1, 10))
     
     # 품목 테이블 생성
     if selected_items:
-        item_data = [["품목", "수량", "단위"]]
+        item_data = [["Item", "Quantity", "Unit"]]
         for item, (qty, unit) in selected_items.items():
             item_data.append([item, str(qty), unit])
         
-        item_table = Table(item_data, colWidths=[110*mm, 30*mm, 30*mm])
+        item_table = Table(item_data, colWidths=[220, 80, 80])
         item_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -217,57 +212,55 @@ def create_pdf():
         ]))
         content.append(item_table)
     else:
-        content.append(Paragraph("선택한 품목이 없습니다.", styles['Korean']))
+        content.append(Paragraph("No items selected.", normal_style))
     
-    content.append(Spacer(1, 7*mm))
+    content.append(Spacer(1, 20))
     
     # 추가 박스 정보
     if any(additional_boxes.values()):
-        content.append(Paragraph("추가 필요 박스", styles['KoreanSubTitle']))
-        content.append(Spacer(1, 3*mm))
+        content.append(Paragraph("Additional Boxes Required", heading_style))
+        content.append(Spacer(1, 10))
         
-        box_data = [["박스 종류", "수량"]]
+        box_data = [["Box Type", "Quantity"]]
         for box, count in additional_boxes.items():
             if count > 0:
                 box_data.append([box, str(count)])
         
-        box_table = Table(box_data, colWidths=[110*mm, 60*mm])
+        box_table = Table(box_data, colWidths=[220, 160])
         box_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ]))
         content.append(box_table)
-        content.append(Spacer(1, 7*mm))
+        content.append(Spacer(1, 20))
     
     # 견적 결과
-    content.append(Paragraph("견적 결과", styles['KoreanSubTitle']))
-    content.append(Spacer(1, 3*mm))
+    content.append(Paragraph("Estimate Result", heading_style))
+    content.append(Spacer(1, 10))
     
     result_data = [
-        ["총 부피", f"{total_volume:.2f} m³"],
-        ["추천 차량", recommended_vehicle],
-        ["차량 여유 공간", f"{remaining_space:.2f}%"]
+        ["Total Volume", f"{total_volume:.2f} m³"],
+        ["Recommended Vehicle", recommended_vehicle],
+        ["Remaining Space", f"{remaining_space:.2f}%"]
     ]
     
-    result_table = Table(result_data, colWidths=[80*mm, 90*mm])
+    result_table = Table(result_data, colWidths=[180, 200])
     result_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
     ]))
     content.append(result_table)
-    content.append(Spacer(1, 7*mm))
+    content.append(Spacer(1, 20))
     
     # 특이 사항
     if special_notes.strip():
-        content.append(Paragraph("특이 사항", styles['KoreanSubTitle']))
-        content.append(Spacer(1, 3*mm))
-        content.append(Paragraph(special_notes, styles['Korean']))
+        content.append(Paragraph("Special Notes", heading_style))
+        content.append(Spacer(1, 10))
+        content.append(Paragraph(special_notes, normal_style))
     
     # PDF 문서 생성
     doc.build(content)
@@ -276,16 +269,19 @@ def create_pdf():
 # PDF 다운로드 버튼
 if st.button("PDF 견적서 다운로드"):
     if customer_name and from_location and to_location:
-        pdf_buffer = create_pdf()
-        pdf_data = pdf_buffer.getvalue()
-        b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
-        
-        # 다운로드 링크 생성
-        pdf_filename = f"{customer_name}_이사견적서.pdf"
-        st.markdown(
-            f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{pdf_filename}">📥 PDF 견적서 다운로드</a>',
-            unsafe_allow_html=True
-        )
-        st.success("견적서가 생성되었습니다. 위 링크를 클릭하여 다운로드하세요.")
+        try:
+            pdf_buffer = create_pdf()
+            pdf_data = pdf_buffer.getvalue()
+            b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
+            
+            # 다운로드 링크 생성
+            pdf_filename = f"{customer_name}_moving_estimate.pdf"
+            st.markdown(
+                f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{pdf_filename}">📥 PDF 견적서 다운로드</a>',
+                unsafe_allow_html=True
+            )
+            st.success("견적서가 생성되었습니다. 위 링크를 클릭하여 다운로드하세요.")
+        except Exception as e:
+            st.error(f"PDF 생성 중 오류가 발생했습니다: {str(e)}")
     else:
         st.error("고객명, 출발지, 도착지를 모두 입력해주세요.")
