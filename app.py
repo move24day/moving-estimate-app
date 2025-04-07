@@ -36,7 +36,10 @@ with col1:
 
 with col2:
     to_floor = st.text_input("🔽 도착지 층수")
-    to_method = st.selectbox("🛗 도착지 작업 방법", method_options, key='to_method')
+    to_method = st.selectbox("🛗 도착지 작업 방법", method_options, key='to_method')+
+
+st.header("🗒️ 특이 사항 입력")
+special_notes = st.text_area("특이 사항이 있으면 입력해주세요.", height=100)
 
 # --- 품목 데이터 ---
 items = {
@@ -114,7 +117,7 @@ total_weight = sum(items[sec][item][1] * qty for sec in items for item, (qty, _)
 # 차량 추천 및 여유 공간 계산
 recommended_vehicle, remaining_space = recommend_vehicle(total_volume, total_weight)
 
-# 결과 출력
+# --- 결과 출력 ---
 st.subheader("✨ 실시간 견적 결과 ✨")
 col1, col2 = st.columns(2)
 
@@ -129,13 +132,16 @@ with col2:
     st.write(f"🚚 이사일: {moving_date}")
 
 st.write("📋 **선택한 품목 리스트:**")
-cols = st.columns(2)
+cols = st.columns(3)  # 3열로 품목 리스트 표시 개선
 items_list = list(selected_items.items())
-half_len = len(items_list) // 2 + len(items_list) % 2
+third_len = len(items_list) // 3 + (len(items_list) % 3 > 0)
 for idx, (item, (qty, unit)) in enumerate(items_list):
-    with cols[idx // half_len]:
+    with cols[idx // third_len]:
         st.write(f"- {item}: {qty}{unit}")
 
+# 특이 사항 출력
+if special_notes.strip():
+    st.info(f"🗒️ **특이 사항:** {special_notes}")
 
 st.success(f"📐 총 부피: {total_volume:.2f} m³")
 st.success(f"🚛 추천 차량: {recommended_vehicle}")
