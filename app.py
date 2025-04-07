@@ -124,10 +124,10 @@ col1, col2 = st.columns(2)
 with col1:
     st.write(f"👤 고객명: {customer_name}")
     st.write(f"📞 전화번호: {customer_phone}")
-    st.write(f"📍 출발지: {from_location} ({from_floor}, {from_method})")
+    st.write(f"📍 출발지: {from_location} ({from_floor} {from_method})")
 
 with col2:
-    st.write(f"📍 도착지: {to_location} ({to_floor}, {to_method})")
+    st.write(f"📍 도착지: {to_location} ({to_floor} {to_method})")
     st.write(f"📅 견적일: {estimate_date}")
     st.write(f"🚚 이사일: {moving_date}")
 
