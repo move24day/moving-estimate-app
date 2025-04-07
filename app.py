@@ -36,7 +36,7 @@ with col1:
 
 with col2:
     to_floor = st.text_input("🔽 도착지 층수")
-    to_method = st.selectbox("🛗 도착지 작업 방법", method_options, key='to_method')+
+    to_method = st.selectbox("🛗 도착지 작업 방법", method_options, key='to_method')
 
 st.header("🗒️ 특이 사항 입력")
 special_notes = st.text_area("특이 사항이 있으면 입력해주세요.", height=100)
