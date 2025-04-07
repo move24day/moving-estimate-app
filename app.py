@@ -3,7 +3,7 @@ from datetime import datetime
 import pytz
 
 # 로고 표시 (화면 좌측 상단)
-st.image("logo.png", width=250)
+st.image("logo.png", width=150)
 
 # --- 고객 기본정보 입력 ---
 st.header("📝 고객 기본 정보")
