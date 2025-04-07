@@ -2,40 +2,41 @@ import streamlit as st
 from datetime import datetime
 import pytz
 
-# 로고
+# 로고 표시 (화면 좌측 상단)
 st.image("logo.png", width=250)
 
-# 제목
-st.title("🚚 이사 견적 산정 시스템")
-
-# --- 고객 기본 정보 ---
+# --- 고객 기본정보 입력 ---
 st.header("📝 고객 기본 정보")
 col1, col2 = st.columns(2)
+
 with col1:
     customer_name = st.text_input("👤 고객명")
     from_location = st.text_input("📍 출발지")
+
 with col2:
     customer_phone = st.text_input("📞 전화번호")
     to_location = st.text_input("📍 도착지")
-moving_date = st.date_input("📅 이사일")
 
+moving_date = st.date_input("🚚 이사일")
+
+# 견적일 자동 표시 (현재시간)
 kst = pytz.timezone('Asia/Seoul')
 estimate_date = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
 
-if not customer_name or not customer_phone:
-    st.warning("고객명과 전화번호를 입력해주세요.")
-    st.stop()
 
-# --- 작업 조건 ---
+# --- 작업 조건 입력 ---
 st.header("🏢 작업 조건")
 col1, col2 = st.columns(2)
-methods = ["사다리차", "승강기", "계단", "스카이"]
+
+method_options = ["사다리차", "승강기", "계단", "스카이"]
+
 with col1:
     from_floor = st.text_input("🔼 출발지 층수")
-    from_method = st.selectbox("🛗 출발지 작업 방법", methods)
+    from_method = st.selectbox("🛗 출발지 작업 방법", method_options, key='from_method')
+
 with col2:
     to_floor = st.text_input("🔽 도착지 층수")
-    to_method = st.selectbox("🛗 도착지 작업 방법", methods, key="to_method")
+    to_method = st.selectbox("🛗 도착지 작업 방법", method_options, key='to_method')
 
 # --- 품목 데이터 ---
 items = {
@@ -64,75 +65,79 @@ items = {
 }
 
 
-# --- 품목 선택 ---
-st.header("📦 품목 선택")
-items = {...}  # 기존 제공된 품목 데이터를 입력하세요
-
+# --- 품목 선택 및 박스 계산 ---
+st.header("📋 품목 선택")
 selected_items = {}
-tabs = st.tabs(items.keys())
-
-for tab, (section, item_dict) in zip(tabs, items.items()):
-    with tab:
-        for item, (volume, weight) in item_dict.items():
-            unit = "칸" if item == "장롱" else "개"
-            qty = st.number_input(f"{item}", min_value=0, step=1, key=f"{section}_{item}")
-            if qty > 0:
-                selected_items[item] = (qty, volume, weight)
-
-# --- 부피 및 무게 산정 ---
-total_volume = sum(qty * volume for qty, volume, _ in selected_items.values())
-total_weight = sum(qty * weight for qty, _, weight in selected_items.values())
-
-# 추가 박스 계산
 additional_boxes = {"중대박스": 0, "옷박스": 0, "중박스": 0}
-for item, (qty, _, _) in selected_items.items():
-    if item == "장롱":
-        additional_boxes["중대박스"] += qty * 5
-    if item == "옷장":
-        additional_boxes["옷박스"] += qty * 3
-    if item == "서랍장(3단)":
-        additional_boxes["중박스"] += qty * 3
-    if item == "서랍장(5단)":
-        additional_boxes["중박스"] += qty * 5
 
+for section, item_list in items.items():
+    with st.expander(f"{section} 품목 선택"):
+        cols = st.columns(2)
+        items_list = list(item_list.items())
+        half_len = len(items_list) // 2 + len(items_list) % 2
+        for idx, (item, (volume, weight)) in enumerate(items_list):
+            with cols[idx // half_len]:
+                unit = "칸" if item == "장롱" else "개"
+                qty = st.number_input(f"{item}", min_value=0, step=1, key=f"{section}_{item}")
+                if qty > 0:
+                    selected_items[item] = (qty, unit)
+                    if item == "장롱":
+                        additional_boxes["중대박스"] += qty * 5
+                    if item == "옷장":
+                        additional_boxes["옷박스"] += qty * 3
+                    if item == "서랍장(3단)":
+                        additional_boxes["중박스"] += qty * 3
+                    if item == "서랍장(5단)":
+                        additional_boxes["중박스"] += qty * 5
+
+# 박스 부피 계산
 box_volumes = {"중대박스": 0.1875, "옷박스": 0.219, "중박스": 0.1}
-for box, count in additional_boxes.items():
-    total_volume += box_volumes[box] * count
+total_volume = sum(items[sec][item][0] * qty for sec in items for item, (qty, _) in selected_items.items() if item in items[sec])
+total_volume += sum(box_volumes[box] * count for box, count in additional_boxes.items())
 
-# --- 차량 추천 ---
-def recommend_vehicle(volume, weight):
+# 차량 추천 및 여유공간 계산 (적재 효율 반영)
+def recommend_vehicle(total_volume, total_weight):
     vehicles = [("1톤", 5, 1000), ("2.5톤", 12, 2500), ("5톤", 25, 5000), ("6톤", 30, 6000),
                 ("7.5톤", 40, 7500), ("10톤", 50, 10000), ("15톤", 70, 15000), ("20톤", 90, 20000)]
-    efficiency = 0.90
-    for name, cap, max_w in vehicles:
-        effective_cap = cap * efficiency
-        if volume <= effective_cap and weight <= max_w:
-            space_left = (effective_cap - volume) / effective_cap * 100
-            return name, space_left
+    loading_efficiency = 0.90
+
+    for name, capacity, max_weight in vehicles:
+        effective_capacity = capacity * loading_efficiency
+        if total_volume <= effective_capacity and total_weight <= max_weight:
+            remaining_space = (effective_capacity - total_volume) / effective_capacity * 100
+            return name, remaining_space
+
     return "20톤 이상 차량 필요", 0
 
-vehicle, space_left = recommend_vehicle(total_volume, total_weight)
+# 총 무게 계산
+total_weight = sum(items[sec][item][1] * qty for sec in items for item, (qty, _) in selected_items.items() if item in items[sec])
 
-# --- 결과 출력 ---
-st.subheader("📋 견적 결과")
-st.markdown(f"""
-| 항목      | 내용 |
-|-----------|------|
-| 고객명    | {customer_name} |
-| 전화번호  | {customer_phone} |
-| 출발지    | {from_location} ({from_floor}층, {from_method}) |
-| 도착지    | {to_location} ({to_floor}층, {to_method}) |
-| 견적일    | {estimate_date} |
-| 이사일    | {moving_date} |
-| 총 부피   | {total_volume:.2f} m³ |
-| 총 무게   | {total_weight:.1f} kg |
-| 추천 차량 | {vehicle} |
-| 여유 공간 | {space_left:.1f}% |
-""")
+# 차량 추천 및 여유 공간 계산
+recommended_vehicle, remaining_space = recommend_vehicle(total_volume, total_weight)
 
-st.subheader("📑 선택된 품목")
-for item, (qty, _, _) in selected_items.items():
-    st.write(f"- {item}: {qty}개")
+# 결과 출력
+st.subheader("✨ 실시간 견적 결과 ✨")
+col1, col2 = st.columns(2)
 
-# --- PDF 다운로드 기능 예시 ---
-# st.download_button("📥 견적서 PDF 다운로드", pdf_bytes, file_name="견적서.pdf")
+with col1:
+    st.write(f"👤 고객명: {customer_name}")
+    st.write(f"📞 전화번호: {customer_phone}")
+    st.write(f"📍 출발지: {from_location} ({from_floor}, {from_method})")
+
+with col2:
+    st.write(f"📍 도착지: {to_location} ({to_floor}, {to_method})")
+    st.write(f"📅 견적일: {estimate_date}")
+    st.write(f"🚚 이사일: {moving_date}")
+
+st.write("📋 **선택한 품목 리스트:**")
+cols = st.columns(2)
+items_list = list(selected_items.items())
+half_len = len(items_list) // 2 + len(items_list) % 2
+for idx, (item, (qty, unit)) in enumerate(items_list):
+    with cols[idx // half_len]:
+        st.write(f"- {item}: {qty}{unit}")
+
+
+st.success(f"📐 총 부피: {total_volume:.2f} m³")
+st.success(f"🚛 추천 차량: {recommended_vehicle}")
+st.info(f"🧮 차량의 여유 공간: {remaining_space:.2f}%")
