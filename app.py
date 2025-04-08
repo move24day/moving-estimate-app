@@ -21,26 +21,31 @@ home_vehicle_prices = {
     '10톤': {'price': 2300000, 'men': 5, 'housewife': 1}
 }
 
-# 사다리 기본 가격 (층수별)
+# 사다리 비용 (층수와 톤수에 따른 만원 단위, 표 기준)
 ladder_prices = {
-    '사용안함': 0,
-    '2~5층': 150000,
-    '6~7층': 160000,
-    '8~9층': 170000,
-    '10~11층': 180000,
-    '12~13층': 190000,
-    '14층': 200000,
-    '15층': 210000,
-    '16층': 220000,
-    '17층': 230000,
-    '18층': 240000,
-    '19층': 250000,
-    '20층': 280000,
-    '21층': 310000,
-    '22층': 340000,
-    '23층': 370000,
-    '24층': 400000,
-    '25층 이상': 450000
+    '2~5층': {'5톤': 150000, '6톤': 180000, '7.5톤': 210000, '10톤': 240000},
+    '6~7층': {'5톤': 160000, '6톤': 190000, '7.5톤': 220000, '10톤': 250000},
+    '8~9층': {'5톤': 170000, '6톤': 200000, '7.5톤': 230000, '10톤': 260000},
+    '10~11층': {'5톤': 180000, '6톤': 210000, '7.5톤': 240000, '10톤': 270000},
+    '12~13층': {'5톤': 190000, '6톤': 220000, '7.5톤': 250000, '10톤': 280000},
+    '14층': {'5톤': 200000, '6톤': 230000, '7.5톤': 260000, '10톤': 290000},
+    '15층': {'5톤': 210000, '6톤': 240000, '7.5톤': 270000, '10톤': 300000},
+    '16층': {'5톤': 220000, '6톤': 250000, '7.5톤': 280000, '10톤': 310000},
+    '17층': {'5톤': 230000, '6톤': 260000, '7.5톤': 290000, '10톤': 320000},
+    '18층': {'5톤': 250000, '6톤': 280000, '7.5톤': 310000, '10톤': 340000},
+    '19층': {'5톤': 260000, '6톤': 290000, '7.5톤': 320000, '10톤': 350000},
+    '20층': {'5톤': 280000, '6톤': 310000, '7.5톤': 340000, '10톤': 370000},
+    '21층': {'5톤': 310000, '6톤': 340000, '7.5톤': 370000, '10톤': 400000},
+    '22층': {'5톤': 340000, '6톤': 370000, '7.5톤': 400000, '10톤': 430000},
+    '23층': {'5톤': 370000, '6톤': 400000, '7.5톤': 430000, '10톤': 460000},
+    '24층': {'5톤': 400000, '6톤': 430000, '7.5톤': 460000, '10톤': 490000}
+}
+
+# 작은 톤수 차량 사다리 가격 적용 (표에 없는 톤수에 대한 처리)
+small_vehicle_ladder_discount = {
+    '1톤': 0.7,  # 5톤 가격의 70%
+    '2.5톤': 0.8,  # 5톤 가격의 80%
+    '3.5톤': 0.9   # 5톤 가격의 90%
 }
 
 # 사다리 무게별 추가 비용
@@ -72,13 +77,15 @@ selected_vehicle = st.selectbox('🚚 차량 톤수 선택:', list(home_vehicle_
 
 st.subheader('📦 이삿짐 이동 방법')
 
-out_method = st.selectbox('나갈 때:', ['계단 🪜', '승강기 🛗', '사다리 🪜', '스카이 🚁'])
-in_method = st.selectbox('들어갈 때:', ['계단 🪜', '승강기 🛗', '사다리 🪜', '스카이 🚁'])
+out_method = st.selectbox('나갈 때:', ['승강기 🛗', '계단 🪜', '사다리 🪜', '스카이 🚁'])
+in_method = st.selectbox('들어갈 때:', ['승강기 🛗', '계단 🪜', '사다리 🪜', '스카이 🚁'])
 
 # 사다리 옵션
-ladder_floor = '사용안함'
+ladder_floor = None
 ladder_weight = '기본'
-if '사다리 🪜' in [out_method, in_method]:
+uses_ladder = '사다리 🪜' in [out_method, in_method]
+
+if uses_ladder:
     col1, col2 = st.columns(2)
     with col1:
         ladder_floor = st.selectbox('사다리 사용 층수 선택:', list(ladder_prices.keys()))
@@ -122,18 +129,35 @@ if st.button('💰 이사 비용 계산하기'):
     base_cost = base_info['price']
     total_cost = base_cost
     
-    # 사다리 비용 계산 (층수 + 무게)
-    if out_method == '사다리 🪜' or in_method == '사다리 🪜':
-        total_cost += ladder_prices[ladder_floor] + ladder_weight_prices[ladder_weight]
+    # 사다리 비용 계산 (층수 + 톤수에 따른)
+    ladder_cost = 0
+    if uses_ladder and ladder_floor:
+        # 5톤, 6톤, 7.5톤, 10톤 차량은 표에서 직접 가격 가져오기
+        if selected_vehicle in ['5톤', '6톤', '7.5톤', '10톤']:
+            ladder_cost += ladder_prices[ladder_floor][selected_vehicle]
+        # 작은 차량은 5톤 가격에서 할인된 가격 적용
+        else:
+            discount_factor = small_vehicle_ladder_discount.get(selected_vehicle, 0.8)  # 기본 80% 적용
+            ladder_cost += int(ladder_prices[ladder_floor]['5톤'] * discount_factor)
+        
+        # 무게에 따른 추가 비용
+        ladder_cost += ladder_weight_prices[ladder_weight]
+        
+        total_cost += ladder_cost
     
     # 스카이 비용 계산
-    if out_method == '스카이 🚁' or in_method == '스카이 🚁':
-        total_cost += sky_base_price + (sky_hours - 2) * sky_extra_hour_price
+    sky_cost = 0
+    if '스카이 🚁' in [out_method, in_method]:
+        sky_cost = sky_base_price + (sky_hours - 2) * sky_extra_hour_price
+        total_cost += sky_cost
     
     # 특별 날짜 비용 계산 (중복 적용)
+    special_days_cost = 0
     for date_type in selected_dates:
         if date_type != '평일(일반)':  # 평일은 추가 비용 없음
-            total_cost += special_day_prices[date_type]
+            special_days_cost += special_day_prices[date_type]
+    
+    total_cost += special_days_cost
     
     st.subheader('📌 총 예상 이사 비용 및 인원:')
     
@@ -141,17 +165,15 @@ if st.button('💰 이사 비용 계산하기'):
     st.write("### 💵 비용 세부 내역:")
     st.write(f"- 기본 이사 비용: {base_cost:,}원")
     
-    if out_method == '사다리 🪜' or in_method == '사다리 🪜':
-        st.write(f"- 사다리 층수 비용 ({ladder_floor}): {ladder_prices[ladder_floor]:,}원")
-        st.write(f"- 사다리 무게 추가 비용 ({ladder_weight}): {ladder_weight_prices[ladder_weight]:,}원")
+    if uses_ladder and ladder_floor:
+        st.write(f"- 사다리 비용 ({ladder_floor}, {selected_vehicle}, {ladder_weight}): {ladder_cost:,}원")
     
-    if out_method == '스카이 🚁' or in_method == '스카이 🚁':
-        sky_cost = sky_base_price + (sky_hours - 2) * sky_extra_hour_price
+    if '스카이 🚁' in [out_method, in_method]:
         st.write(f"- 스카이 사용 비용 ({sky_hours}시간): {sky_cost:,}원")
     
-    special_days_cost = sum([special_day_prices[date] for date in selected_dates if date != '평일(일반)'])
     if special_days_cost > 0:
-        st.write(f"- 특별 날짜 추가 비용: {special_days_cost:,}원")
+        special_days_text = ", ".join([d for d in selected_dates if d != '평일(일반)'])
+        st.write(f"- 특별 날짜 추가 비용 ({special_days_text}): {special_days_cost:,}원")
     
     st.write(f"### 총 비용: {total_cost:,}원 💸")
     
