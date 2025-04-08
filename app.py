@@ -1,114 +1,95 @@
 import streamlit as st
-from datetime import datetime
-import pytz
-import base64
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from io import BytesIO
 
-# 한글 폰트 설정
-pdfmetrics.registerFont(TTFont('NanumGothic', 'NanumGothic.ttf'))
-
-# 로고 표시
-try:
-    st.image("logo.png", width=150)
-except:
-    st.write("로고 이미지를 찾을 수 없습니다.")
-
-# 고객 정보 입력
-st.header("📝 고객 기본 정보")
-col1, col2 = st.columns(2)
-with col1:
-    customer_name = st.text_input("👤 고객명")
-    from_location = st.text_input("📍 출발지")
-with col2:
-    customer_phone = st.text_input("📞 전화번호")
-    to_location = st.text_input("📍 도착지")
-
-moving_date = st.date_input("🚚 이사일")
-
-kst = pytz.timezone('Asia/Seoul')
-estimate_date = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
-
-# 작업 조건 입력
-st.header("🏢 작업 조건")
-col1, col2 = st.columns(2)
-method_options = ["사다리차", "승강기", "계단", "스카이"]
-with col1:
-    from_floor = st.number_input("🔼 출발지 층수", min_value=1, step=1)
-    from_method = st.selectbox("🛗 출발지 작업 방법", method_options)
-with col2:
-    to_floor = st.number_input("🔽 도착지 층수", min_value=1, step=1)
-    to_method = st.selectbox("🛗 도착지 작업 방법", method_options, key='to')
-
-special_notes = st.text_area("🗒️ 특이 사항 입력", height=100)
-
-# 품목 분류
-items = {
-    '가정': {
-        '장롱': (1.05,120),'싱글침대':(1.2,60),'더블침대':(1.7,70),'돌침대':(2.5,150),'서랍장(3단)':(0.4,30),'서랍장(5단)':(0.75,40),
-        '피아노(일반)':(1.5,200),'피아노(디지털)':(0.5,50),'소파(1인용)':(0.4,30),'소파(3인용)':(0.6,50),'안마기':(0.9,50),
-        '양문형냉장고':(1.0,120),'4도어냉장고':(1.2,130),'김치냉장고(스탠드형)':(0.8,90),'김치냉장고(일반형)':(0.6,60),
-        '주방용선반(수납장)':(1.1,80),'세탁기':(0.5,80),'건조기':(0.5,80),'신발장':(1.1,60)
-    },
-    '기타': {
-        '옷장':(1.05,160),'화장대':(0.32,80),'책장':(0.96,56),'책상&의자':(0.25,40),'옷행거':(0.35,40),
-        '소파테이블':(0.65,35),'TV(45인치)':(0.15,15),'TV(75인치)':(0.3,30),'장식장':(0.75,40),'오디오및스피커':(0.1,20),
-        '에어컨':(0.15,30),'공기청정기':(0.1,8),'식탁(4인)':(0.4,50),'식탁(6인)':(0.6,70),'가스레인지및인덕션':(0.1,10),
-        '여행가방및캐리어':(0.15,5),'화분':(0.2,10),'스타일러스':(0.5,20)
-    }
+# 차량 톤수와 유형에 따른 기본 비용 (예시 비용)
+office_vehicle_prices = {
+    '1톤': {'price': 400000, 'men': 2},
+    '2.5톤': {'price': 650000, 'men': 2},
+    '3.5톤': {'price': 700000, 'men': 2},
+    '5톤': {'price': 950000, 'men': 3},
+    '6톤': {'price': 1050000, 'men': 3},
+    '7.5톤': {'price': 1300000, 'men': 4},
+    '10톤': {'price': 1700000, 'men': 5}
 }
 
-selected_items = {}
-total_volume, total_weight = 0,0
+home_vehicle_prices = {
+    '1톤': {'price': 400000, 'men': 2, 'housewife': 0},
+    '2.5톤': {'price': 900000, 'men': 2, 'housewife': 1},
+    '3.5톤': {'price': 950000, 'men': 2, 'housewife': 1},
+    '5톤': {'price': 1200000, 'men': 3, 'housewife': 1},
+    '6톤': {'price': 1350000, 'men': 3, 'housewife': 1},
+    '7.5톤': {'price': 1750000, 'men': 4, 'housewife': 1},
+    '10톤': {'price': 2300000, 'men': 5, 'housewife': 1}
+}
 
-st.header("📋 품목 선택")
-for category, item_dict in items.items():
-    with st.expander(f"{category} 품목 선택"):
-        cols = st.columns(3)
-        for idx,(item,(vol,wt)) in enumerate(item_dict.items()):
-            with cols[idx%3]:
-                qty = st.number_input(f"{item}",min_value=0,step=1,key=f"{category}_{item}")
-                if qty>0:
-                    selected_items[item]=(qty,"개")
-                    total_volume+=vol*qty
-                    total_weight+=wt*qty
+ladder_prices = {
+    '사용안함': 0,
+    '2~5층': 150000,
+    '6~7층': 160000,
+    '8~9층': 170000,
+    '10~11층': 180000,
+    '12~13층': 190000,
+    '14층': 200000,
+    '15층': 210000,
+    '16층': 220000,
+    '17층': 230000,
+    '18층': 240000,
+    '19층': 250000,
+    '20층': 280000,
+    '21층': 310000,
+    '22층': 340000,
+    '23층': 370000,
+    '24층': 400000,
+    '25층 이상': 450000
+}
 
-# 차량 추천
-vehicles=[("1톤",5,1000),("2.5톤",12,2500),("5톤",25,5000),("6톤",30,6000),("7.5톤",40,7500),("10톤",50,10000),("15톤",70,15000),("20톤",90,20000)]
-loading_efficiency=0.9
-for name,cap,wt in vehicles:
-    if total_volume<=cap*loading_efficiency and total_weight<=wt:
-        recommended_vehicle=name
-        remaining_space=(cap*loading_efficiency-total_volume)/(cap*loading_efficiency)*100
-        break
-else:
-    recommended_vehicle="20톤 이상 차량 필요"
-    remaining_space=0
+special_day_prices = {
+    '평일(일반)': 0,
+    '이사많은날 🏠': 100000,
+    '손없는날 ✋': 100000,
+    '월말 📅': 100000,
+    '공휴일 🎉': 100000
+}
 
-st.success(f"📐 총 부피: {total_volume:.2f} m³")
-st.success(f"🚛 추천 차량: {recommended_vehicle}")
-st.info(f"🧮 여유 공간: {remaining_space:.2f}%")
+sky_base_price = 300000
+sky_extra_hour_price = 50000
 
-# PDF 생성 및 다운로드
-# [기존 PDF 생성 로직에서 한글 폰트 스타일 적용한 코드로 교체 필수]
-# (PDF 코드 생략됨 - 글자 수 제한으로 여기에 간략화)
+st.title('🚛 이사 비용 계산기')
 
-if st.button("PDF 견적서 다운로드"):
-    if customer_name and customer_phone and from_location and to_location:
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
-        styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name='Korean', fontName='NanumGothic', fontSize=12))
-        content = [Paragraph("이사 견적서", styles['Korean'])]  # (예시)
-        doc.build(content)
-        pdf_data = buffer.getvalue()
-        b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
-        st.markdown(f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="estimate.pdf">📥 PDF 다운로드</a>',unsafe_allow_html=True)
-        st.success("견적서 생성 완료.")
+move_type = st.radio('🏢 이사 유형 선택:', ('가정 이사 🏠', '사무실 이사 🏢'))
+selected_vehicle = st.selectbox('🚚 차량 톤수 선택:', list(home_vehicle_prices.keys()))
+
+st.subheader('📦 이삿짐 이동 방법')
+out_method = st.selectbox('나갈 때:', ['계단 🪜', '승강기 🛗', '사다리 🪜', '스카이 🚁'])
+in_method = st.selectbox('들어갈 때:', ['계단 🪜', '승강기 🛗', '사다리 🪜', '스카이 🚁'])
+
+ladder_floor = '사용안함'
+if '사다리 🪜' in [out_method, in_method]:
+    ladder_floor = st.selectbox('사다리 사용 층수 선택:', list(ladder_prices.keys()))
+
+sky_hours = 2
+if '스카이 🚁' in [out_method, in_method]:
+    sky_hours = st.number_input('스카이 사용 시간 (기본 2시간 포함)', min_value=2, step=1)
+
+selected_date = st.selectbox('📅 날짜 유형 선택:', list(special_day_prices.keys()))
+
+if st.button('💰 이사 비용 계산하기'):
+    if move_type == '가정 이사 🏠':
+        base_info = home_vehicle_prices[selected_vehicle]
     else:
-        st.error("모든 정보를 입력하세요.")
+        base_info = office_vehicle_prices[selected_vehicle]
+
+    base_cost = base_info['price']
+    total_cost = base_cost
+
+    if out_method == '사다리 🪜' or in_method == '사다리 🪜':
+        total_cost += ladder_prices[ladder_floor]
+    if out_method == '스카이 🚁' or in_method == '스카이 🚁':
+        total_cost += sky_base_price + (sky_hours - 2) * sky_extra_hour_price
+
+    total_cost += special_day_prices[selected_date]
+
+    st.subheader('📌 총 예상 이사 비용 및 인원:')
+    if move_type == '가정 이사 🏠':
+        st.write(f'**{total_cost:,}원 💸 (남성 👨: {base_info["men"]}명, 주부사원 👩: {base_info["housewife"]}명)**')
+    else:
+        st.write(f'**{total_cost:,}원 💸 (남성 👨: {base_info["men"]}명)**')
