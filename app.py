@@ -15,7 +15,7 @@ from io import BytesIO
 pdfmetrics.registerFont(TTFont('NanumGothic', 'NanumGothic.ttf'))  
   
 # 로고 표시 (화면 좌측 상단)  
-st.image("logo.png", width=150)  
+st.image("/mnt/data/image.png", width=150)
   
 # --- 고객 기본정보 입력 ---  
 st.header("📝 고객 기본 정보")  
