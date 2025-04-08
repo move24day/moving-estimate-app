@@ -22,12 +22,12 @@ st.header("📝 고객 기본 정보")
 col1, col2 = st.columns(2)  
   
 with col1:  
-    customer_name = st.text_input("👤 고객명")  
-    from_location = st.text_input("📍 출발지")  
+    customer_name = st.text_input("👤 고객명", value="")  
+    from_location = st.text_input("📍 출발지", value="")  
   
 with col2:  
-    customer_phone = st.text_input("📞 전화번호")  
-    to_location = st.text_input("📍 도착지")  
+    customer_phone = st.text_input("📞 전화번호", value="")  
+    to_location = st.text_input("📍 도착지", value="")  
   
 moving_date = st.date_input("🚚 이사일")  
   
@@ -43,15 +43,15 @@ col1, col2 = st.columns(2)
 method_options = ["사다리차", "승강기", "계단", "스카이"]  
   
 with col1:  
-    from_floor = st.text_input("🔼 출발지 층수")  
+    from_floor = st.text_input("🔼 출발지 층수", value="")  
     from_method = st.selectbox("🛗 출발지 작업 방법", method_options, key='from_method')  
   
 with col2:  
-    to_floor = st.text_input("🔽 도착지 층수")  
+    to_floor = st.text_input("🔽 도착지 층수", value="")  
     to_method = st.selectbox("🛗 도착지 작업 방법", method_options, key='to_method')  
   
 st.header("🗒️ 특이 사항 입력")  
-special_notes = st.text_area("특이 사항이 있으면 입력해주세요.", height=100)  
+special_notes = st.text_area("특이 사항이 있으면 입력해주세요.", height=100, value="")  
   
 # --- 품목 데이터 ---  
 items = {  
@@ -135,22 +135,25 @@ st.subheader("✨ 실시간 견적 결과 ✨")
 col1, col2 = st.columns(2)  
   
 with col1:  
-    st.write(f"👤 고객명: {customer_name}")  
-    st.write(f"📞 전화번호: {customer_phone}")  
-    st.write(f"📍 출발지: {from_location} ({from_floor} {from_method})")  
+    st.write(f"👤 고객명: {customer_name if customer_name else '미입력'}")  
+    st.write(f"📞 전화번호: {customer_phone if customer_phone else '미입력'}")  
+    st.write(f"📍 출발지: {from_location if from_location else '미입력'} ({from_floor if from_floor else '미입력'} {from_method})")  
   
 with col2:  
-    st.write(f"📍 도착지: {to_location} ({to_floor} {to_method})")  
+    st.write(f"📍 도착지: {to_location if to_location else '미입력'} ({to_floor if to_floor else '미입력'} {to_method})")  
     st.write(f"📅 견적일: {estimate_date}")  
     st.write(f"🚚 이사일: {moving_date}")  
   
 st.write("📋 **선택한 품목 리스트:**")  
-cols = st.columns(3)  # 3열로 품목 리스트 표시 개선  
-items_list = list(selected_items.items())  
-third_len = len(items_list) // 3 + (len(items_list) % 3 > 0)  
-for idx, (item, (qty, unit)) in enumerate(items_list):  
-    with cols[idx // third_len]:  
-        st.write(f"- {item}: {qty}{unit}")  
+if not selected_items:
+    st.write("선택한 품목이 없습니다.")
+else:
+    cols = st.columns(3)  # 3열로 품목 리스트 표시 개선  
+    items_list = list(selected_items.items())  
+    third_len = len(items_list) // 3 + (len(items_list) % 3 > 0)  
+    for idx, (item, (qty, unit)) in enumerate(items_list):  
+        with cols[idx // third_len]:  
+            st.write(f"- {item}: {qty}{unit}")  
   
 # 특이 사항 출력  
 if special_notes.strip():  
@@ -160,8 +163,8 @@ st.success(f"📐 총 부피: {total_volume:.2f} m³")
 st.success(f"🚛 추천 차량: {recommended_vehicle}")  
 st.info(f"🧮 차량의 여유 공간: {remaining_space:.2f}%")  
   
-# PDF 생성 함수  
-def create_pdf():  
+# PDF 생성 함수 - 상세 견적서 (품목 포함)
+def create_detailed_pdf():  
     buffer = BytesIO()  
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, topMargin=15*mm, bottomMargin=15*mm)  
       
@@ -175,13 +178,14 @@ def create_pdf():
     content = []  
       
     # 제목  
-    content.append(Paragraph("이사 견적서", styles['KoreanTitle']))  
+    content.append(Paragraph("이사 견적서 (상세)", styles['KoreanTitle']))  
     content.append(Spacer(1, 10*mm))  
       
     # 고객 정보 테이블  
     customer_data = [  
-        ["고객명", customer_name, "전화번호", customer_phone],  
-        ["출발지", f"{from_location} ({from_floor} {from_method})", "도착지", f"{to_location} ({to_floor} {to_method})"],  
+        ["고객명", customer_name if customer_name else "미입력", "전화번호", customer_phone if customer_phone else "미입력"],  
+        ["출발지", f"{from_location if from_location else '미입력'} ({from_floor if from_floor else '미입력'} {from_method})", 
+         "도착지", f"{to_location if to_location else '미입력'} ({to_floor if to_floor else '미입력'} {to_method})"],  
         ["견적일", estimate_date, "이사일", moving_date.strftime("%Y-%m-%d")]  
     ]  
       
@@ -271,21 +275,129 @@ def create_pdf():
       
     # PDF 문서 생성  
     doc.build(content)  
-    return buffer  
+    return buffer
+
+# PDF 생성 함수 - 계약용 간소화 견적서 (품목 제외)
+def create_contract_pdf():
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, topMargin=15*mm, bottomMargin=15*mm)
+    
+    # 스타일 설정
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='Korean', fontName='NanumGothic', fontSize=10, leading=12))
+    styles.add(ParagraphStyle(name='KoreanTitle', fontName='NanumGothic', fontSize=16, leading=20, alignment=1))
+    styles.add(ParagraphStyle(name='KoreanSubTitle', fontName='NanumGothic', fontSize=12, leading=14, alignment=0))
+    
+    # 문서 내용 구성
+    content = []
+    
+    # 제목
+    content.append(Paragraph("이사 계약서", styles['KoreanTitle']))
+    content.append(Spacer(1, 10*mm))
+    
+    # 고객 정보 테이블
+    customer_data = [
+        ["고객명", customer_name if customer_name else "미입력", "전화번호", customer_phone if customer_phone else "미입력"],
+        ["출발지", f"{from_location if from_location else '미입력'} ({from_floor if from_floor else '미입력'} {from_method})", 
+         "도착지", f"{to_location if to_location else '미입력'} ({to_floor if to_floor else '미입력'} {to_method})"],
+        ["견적일", estimate_date, "이사일", moving_date.strftime("%Y-%m-%d")]
+    ]
+    
+    t = Table(customer_data, colWidths=[40*mm, 50*mm, 40*mm, 50*mm])
+    t.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('BACKGROUND', (2, 0), (2, -1), colors.lightgrey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    content.append(t)
+    content.append(Spacer(1, 7*mm))
+    
+    # 견적 결과
+    content.append(Paragraph("견적 결과", styles['KoreanSubTitle']))
+    content.append(Spacer(1, 3*mm))
+    
+    result_data = [
+        ["총 부피", f"{total_volume:.2f} m³"],
+        ["추천 차량", recommended_vehicle],
+        ["차량 여유 공간", f"{remaining_space:.2f}%"]
+    ]
+    
+    result_table = Table(result_data, colWidths=[80*mm, 90*mm])
+    result_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    content.append(result_table)
+    content.append(Spacer(1, 7*mm))
+    
+    # 특이 사항
+    if special_notes.strip():
+        content.append(Paragraph("특이 사항", styles['KoreanSubTitle']))
+        content.append(Spacer(1, 3*mm))
+        content.append(Paragraph(special_notes, styles['Korean']))
+    
+    # 계약 서명란 추가
+    content.append(Spacer(1, 20*mm))
+    content.append(Paragraph("계약 동의", styles['KoreanSubTitle']))
+    content.append(Spacer(1, 3*mm))
+    
+    contract_text = "본인은 위 내용에 대해 동의하며, 이사 서비스를 계약합니다."
+    content.append(Paragraph(contract_text, styles['Korean']))
+    content.append(Spacer(1, 10*mm))
+    
+    # 서명 테이블
+    signature_data = [
+        ["고객 서명", "", "날짜", ""]
+    ]
+    
+    sig_table = Table(signature_data, colWidths=[40*mm, 60*mm, 30*mm, 40*mm])
+    sig_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (0, 0), colors.lightgrey),
+        ('BACKGROUND', (2, 0), (2, 0), colors.lightgrey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    content.append(sig_table)
+    
+    # PDF 문서 생성
+    doc.build(content)
+    return buffer
   
-# PDF 다운로드 버튼  
-if st.button("PDF 견적서 다운로드"):  
-    if customer_name and from_location and to_location:  
-        pdf_buffer = create_pdf()  
-        pdf_data = pdf_buffer.getvalue()  
-        b64_pdf = base64.b64encode(pdf_data).decode('utf-8')  
+# PDF 다운로드 버튼들
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("상세 견적서 다운로드"):
+        pdf_buffer = create_detailed_pdf()
+        pdf_data = pdf_buffer.getvalue()
+        b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
           
-        # 다운로드 링크 생성  
-        pdf_filename = f"{customer_name}_이사견적서.pdf"  
-        st.markdown(  
-            f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{pdf_filename}">📥 PDF 견적서 다운로드</a>',  
-            unsafe_allow_html=True  
-        )  
-        st.success("견적서가 생성되었습니다. 위 링크를 클릭하여 다운로드하세요.")  
-    else:  
-        st.error("고객명, 출발지, 도착지를 모두 입력해주세요.")
+        # 다운로드 링크 생성
+        pdf_filename = f"{customer_name if customer_name else '고객'}_이사_상세견적서.pdf"
+        st.markdown(
+            f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{pdf_filename}">📥 상세 견적서 다운로드</a>',
+            unsafe_allow_html=True
+        )
+        st.success("상세 견적서가 생성되었습니다. 위 링크를 클릭하여 다운로드하세요.")
+
+with col2:
+    if st.button("계약용 견적서 다운로드"):
+        pdf_buffer = create_contract_pdf()
+        pdf_data = pdf_buffer.getvalue()
+        b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
+          
+        # 다운로드 링크 생성
+        pdf_filename = f"{customer_name if customer_name else '고객'}_이사_계약서.pdf"
+        st.markdown(
+            f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{pdf_filename}">📥 계약용 견적서 다운로드</a>',
+            unsafe_allow_html=True
+        )
+        st.success("계약용 견적서가 생성되었습니다. 위 링크를 클릭하여 다운로드하세요.")
