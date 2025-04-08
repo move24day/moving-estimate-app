@@ -277,8 +277,8 @@ def create_detailed_pdf():
     doc.build(content)  
     return buffer
 
-# PDF 생성 함수 - 계약용 간소화 견적서 (품목 제외)
-def create_contract_pdf():
+# PDF 생성 함수 - 간소화 견적서 (품목 제외)
+def create_simplified_pdf():
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, topMargin=15*mm, bottomMargin=15*mm)
     
@@ -292,7 +292,7 @@ def create_contract_pdf():
     content = []
     
     # 제목
-    content.append(Paragraph("이사 계약서", styles['KoreanTitle']))
+    content.append(Paragraph("이사 견적서", styles['KoreanTitle']))
     content.append(Spacer(1, 10*mm))
     
     # 고객 정보 테이블
@@ -342,31 +342,6 @@ def create_contract_pdf():
         content.append(Spacer(1, 3*mm))
         content.append(Paragraph(special_notes, styles['Korean']))
     
-    # 계약 서명란 추가
-    content.append(Spacer(1, 20*mm))
-    content.append(Paragraph("계약 동의", styles['KoreanSubTitle']))
-    content.append(Spacer(1, 3*mm))
-    
-    contract_text = "본인은 위 내용에 대해 동의하며, 이사 서비스를 계약합니다."
-    content.append(Paragraph(contract_text, styles['Korean']))
-    content.append(Spacer(1, 10*mm))
-    
-    # 서명 테이블
-    signature_data = [
-        ["고객 서명", "", "날짜", ""]
-    ]
-    
-    sig_table = Table(signature_data, colWidths=[40*mm, 60*mm, 30*mm, 40*mm])
-    sig_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'NanumGothic'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('BACKGROUND', (0, 0), (0, 0), colors.lightgrey),
-        ('BACKGROUND', (2, 0), (2, 0), colors.lightgrey),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-    ]))
-    content.append(sig_table)
-    
     # PDF 문서 생성
     doc.build(content)
     return buffer
@@ -389,15 +364,15 @@ with col1:
         st.success("상세 견적서가 생성되었습니다. 위 링크를 클릭하여 다운로드하세요.")
 
 with col2:
-    if st.button("계약용 견적서 다운로드"):
-        pdf_buffer = create_contract_pdf()
+    if st.button("간소화 견적서 다운로드"):
+        pdf_buffer = create_simplified_pdf()
         pdf_data = pdf_buffer.getvalue()
         b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
           
         # 다운로드 링크 생성
-        pdf_filename = f"{customer_name if customer_name else '고객'}_이사_계약서.pdf"
+        pdf_filename = f"{customer_name if customer_name else '고객'}_이사_간소화견적서.pdf"
         st.markdown(
-            f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{pdf_filename}">📥 계약용 견적서 다운로드</a>',
+            f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{pdf_filename}">📥 간소화 견적서 다운로드</a>',
             unsafe_allow_html=True
         )
-        st.success("계약용 견적서가 생성되었습니다. 위 링크를 클릭하여 다운로드하세요.")
+        st.success("간소화 견적서가 생성되었습니다. 위 링크를 클릭하여 다운로드하세요.")
