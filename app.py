@@ -21,7 +21,7 @@ home_vehicle_prices = {
     '10톤': {'price': 2300000, 'men': 5, 'housewife': 1}
 }
 
-# 사다리 비용 (층수와 톤수에 따른 만원 단위, 표 기준)
+# 사다리 비용 (층수와 톤수에 따른, 만원 단위를 원 단위로 변환)
 ladder_prices = {
     '2~5층': {'5톤': 150000, '6톤': 180000, '7.5톤': 210000, '10톤': 240000},
     '6~7층': {'5톤': 160000, '6톤': 190000, '7.5톤': 220000, '10톤': 250000},
@@ -48,16 +48,6 @@ small_vehicle_ladder_discount = {
     '3.5톤': 0.9   # 5톤 가격의 90%
 }
 
-# 사다리 무게별 추가 비용
-ladder_weight_prices = {
-    '기본': 0,
-    '100kg 이상': 50000,
-    '200kg 이상': 100000,
-    '300kg 이상': 150000,
-    '400kg 이상': 200000,
-    '500kg 이상': 250000
-}
-
 special_day_prices = {
     '평일(일반)': 0,
     '이사많은날 🏠': 100000,
@@ -65,6 +55,12 @@ special_day_prices = {
     '월말 📅': 100000,
     '공휴일 🎉': 100000
 }
+
+# 추가 인원 비용
+additional_person_cost = 200000  # 추가 인원 1명당 20만원
+
+# 폐기물 처리 비용
+waste_disposal_cost = 300000  # 폐기물 1톤당 30만원
 
 sky_base_price = 300000
 sky_extra_hour_price = 50000
@@ -81,21 +77,33 @@ out_method = st.selectbox('나갈 때:', ['승강기 🛗', '계단 🪜', '사�
 in_method = st.selectbox('들어갈 때:', ['승강기 🛗', '계단 🪜', '사다리 🪜', '스카이 🚁'])
 
 # 사다리 옵션
-ladder_floor = None
-ladder_weight = '기본'
+ladder_floor = '사용안함'
 uses_ladder = '사다리 🪜' in [out_method, in_method]
 
 if uses_ladder:
-    col1, col2 = st.columns(2)
-    with col1:
-        ladder_floor = st.selectbox('사다리 사용 층수 선택:', list(ladder_prices.keys()))
-    with col2:
-        ladder_weight = st.selectbox('사다리 무게 옵션:', list(ladder_weight_prices.keys()))
+    ladder_floor = st.selectbox('사다리 사용 층수 선택:', list(ladder_prices.keys()))
+    st.info('📊 사다리 비용은 차량 톤수와 층수에 따라 자동 계산됩니다.')
 
 # 스카이 옵션
 sky_hours = 2
 if '스카이 🚁' in [out_method, in_method]:
     sky_hours = st.number_input('스카이 사용 시간 (기본 2시간 포함) ⏱️', min_value=2, step=1)
+
+# 추가 인원 옵션
+st.subheader('👥 인원 추가 옵션')
+col1, col2 = st.columns(2)
+with col1:
+    additional_men = st.number_input('추가 남성 인원 👨', min_value=0, step=1)
+with col2:
+    additional_women = st.number_input('추가 여성 인원 👩', min_value=0, step=1)
+
+# 폐기물 처리 옵션
+st.subheader('🗑️ 폐기물 처리 옵션')
+has_waste = st.checkbox('폐기물 처리 필요')
+waste_tons = 0
+if has_waste:
+    waste_tons = st.number_input('폐기물 양 (톤)', min_value=0.5, max_value=10.0, value=1.0, step=0.5)
+    st.info('💡 폐기물 처리 비용: 1톤당 30만원이 추가됩니다.')
 
 # 날짜 유형 다중 선택
 st.subheader('📅 날짜 유형 선택 (중복 가능)')
@@ -131,17 +139,14 @@ if st.button('💰 이사 비용 계산하기'):
     
     # 사다리 비용 계산 (층수 + 톤수에 따른)
     ladder_cost = 0
-    if uses_ladder and ladder_floor:
+    if uses_ladder and ladder_floor != '사용안함':
         # 5톤, 6톤, 7.5톤, 10톤 차량은 표에서 직접 가격 가져오기
         if selected_vehicle in ['5톤', '6톤', '7.5톤', '10톤']:
-            ladder_cost += ladder_prices[ladder_floor][selected_vehicle]
+            ladder_cost = ladder_prices[ladder_floor][selected_vehicle]
         # 작은 차량은 5톤 가격에서 할인된 가격 적용
         else:
             discount_factor = small_vehicle_ladder_discount.get(selected_vehicle, 0.8)  # 기본 80% 적용
-            ladder_cost += int(ladder_prices[ladder_floor]['5톤'] * discount_factor)
-        
-        # 무게에 따른 추가 비용
-        ladder_cost += ladder_weight_prices[ladder_weight]
+            ladder_cost = int(ladder_prices[ladder_floor]['5톤'] * discount_factor)
         
         total_cost += ladder_cost
     
@@ -150,6 +155,19 @@ if st.button('💰 이사 비용 계산하기'):
     if '스카이 🚁' in [out_method, in_method]:
         sky_cost = sky_base_price + (sky_hours - 2) * sky_extra_hour_price
         total_cost += sky_cost
+    
+    # 추가 인원 비용 계산
+    additional_people = additional_men + additional_women
+    additional_people_cost = 0
+    if additional_people > 0:
+        additional_people_cost = additional_person_cost * additional_people
+        total_cost += additional_people_cost
+    
+    # 폐기물 처리 비용 계산
+    waste_cost = 0
+    if has_waste and waste_tons > 0:
+        waste_cost = int(waste_disposal_cost * waste_tons)
+        total_cost += waste_cost
     
     # 특별 날짜 비용 계산 (중복 적용)
     special_days_cost = 0
@@ -165,11 +183,17 @@ if st.button('💰 이사 비용 계산하기'):
     st.write("### 💵 비용 세부 내역:")
     st.write(f"- 기본 이사 비용: {base_cost:,}원")
     
-    if uses_ladder and ladder_floor:
-        st.write(f"- 사다리 비용 ({ladder_floor}, {selected_vehicle}, {ladder_weight}): {ladder_cost:,}원")
+    if uses_ladder and ladder_floor != '사용안함':
+        st.write(f"- 사다리 비용 ({ladder_floor}, {selected_vehicle}): {ladder_cost:,}원")
     
     if '스카이 🚁' in [out_method, in_method]:
         st.write(f"- 스카이 사용 비용 ({sky_hours}시간): {sky_cost:,}원")
+    
+    if additional_people > 0:
+        st.write(f"- 추가 인원 비용 (남성 {additional_men}명, 여성 {additional_women}명): {additional_people_cost:,}원")
+    
+    if has_waste and waste_tons > 0:
+        st.write(f"- 폐기물 처리 비용 ({waste_tons}톤): {waste_cost:,}원")
     
     if special_days_cost > 0:
         special_days_text = ", ".join([d for d in selected_dates if d != '평일(일반)'])
@@ -180,7 +204,33 @@ if st.button('💰 이사 비용 계산하기'):
     # 인원 정보 표시
     st.write("### 👨‍👩‍👧 투입 인원:")
     if move_type == '가정 이사 🏠':
-        st.write(f"- 남성 작업자 👨: {base_info['men']}명")
-        st.write(f"- 주부사원 👩: {base_info['housewife']}명")
+        total_men = base_info['men'] + additional_men
+        total_women = base_info.get('housewife', 0) + additional_women
+        st.write(f"- 남성 작업자 👨: {total_men}명 (기본 {base_info['men']}명 + 추가 {additional_men}명)")
+        st.write(f"- 여성 작업자 👩: {total_women}명 (기본 {base_info.get('housewife', 0)}명 + 추가 {additional_women}명)")
     else:
-        st.write(f"- 남성 작업자 👨: {base_info['men']}명")
+        total_men = base_info['men'] + additional_men
+        st.write(f"- 남성 작업자 👨: {total_men}명 (기본 {base_info['men']}명 + 추가 {additional_men}명)")
+        if additional_women > 0:
+            st.write(f"- 여성 작업자 👩: {additional_women}명")
+    
+    # 사다리 사용 시 가격표 보여주기
+    if uses_ladder and ladder_floor != '사용안함':
+        st.subheader('📊 사다리 요금표 (만원)')
+        
+        # 사다리 요금표 데이터 준비
+        ladder_table_data = []
+        for floor in ladder_prices.keys():
+            row = [floor]
+            for ton in ['5톤', '6톤', '7.5톤', '10톤']:
+                # 만원 단위로 표시 (10으로 나누기)
+                row.append(int(ladder_prices[floor][ton] / 10000))
+            ladder_table_data.append(row)
+        
+        # 표 열 이름
+        columns = ['층수', '5톤', '6톤', '7.5톤', '10톤']
+        
+        # DataFrame 생성하여 표시
+        import pandas as pd
+        ladder_df = pd.DataFrame(ladder_table_data, columns=columns)
+        st.table(ladder_df)
