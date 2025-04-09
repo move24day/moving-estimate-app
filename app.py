@@ -657,7 +657,6 @@ with tab3:
     # PDF 견적서 생성 기능
 st.subheader("📄 견적서 다운로드")
 if st.button("PDF 견적서 생성"):
-    # PDF 생성 로직
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
 
@@ -674,15 +673,14 @@ if st.button("PDF 견적서 생성"):
     styles["Heading1"].fontName = "NanumGothic"
     styles["Heading2"].fontName = "NanumGothic"
 
-    elements = []
+    elements = []  # 반드시 여기에 있어야 합니다.
 
-    # 제목 추가 (이 부분을 지금처럼 위로 분리하면 안되고 여기 내부로 가져와야 합니다.)
-    title_style = styles["Title"]
-    elements.append(Paragraph("이사 견적서", title_style))
+    # 아래 코드들은 모두 elements 정의 뒤에 와야 합니다.
+    elements.append(Paragraph("이사 견적서", styles["Title"]))
     elements.append(Spacer(1, 12))
 
-# 기본 정보
-elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
+    # 기본 정보 추가
+    elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
 data = [
     ["고객명", st.session_state.get("customer_name", "")],
     ["전화번호", st.session_state.get("customer_phone", "")],
