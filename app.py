@@ -514,12 +514,12 @@ with tab3:
         ["기본 이사 비용", f"{base_cost:,}원"],
         (["출발지 사다리차 비용", f"{ladder_from_cost:,}원"] if ladder_from_cost > 0 else None),
         (["도착지 사다리차 비용", f"{ladder_to_cost:,}원"] if ladder_to_cost > 0 else None),
-        (["스카이 비용", f"{sky_cost:,}원 ({sky_hours}시간 사용)" ] if sky_cost > 0 else None), # Simplified text
+        (["스카이 비용", f"{sky_cost:,}원 ({sky_hours}시간 사용)"] if sky_cost > 0 else None),  # Simplified text
         (["추가 인원 비용", f"{additional_person_total:,}원 ({additional_men + additional_women}명)"] if additional_person_total > 0 else None),
         (["폐기물 처리 비용", f"{waste_cost:,}원 ({waste_tons}톤)"] if waste_cost > 0 else None),
         (["이사 집중일 부담금", f"{special_day_cost_factor:,}원 ({', '.join(selected_dates_display)})"] if special_day_cost_factor > 0 else None),
     ]
-    cost_items = [item for item in cost_items if item is not None] # Filter out None items
+    cost_items = [item for item in cost_items if item is not None]  # Filter out None items
     cost_df = pd.DataFrame(cost_items, columns=["항목", "금액"])
     st.table(cost_df)
 
@@ -535,7 +535,7 @@ with tab3:
         # Check if essential info is present before generating PDF
         if not st.session_state.get("customer_name") and not st.session_state.get("customer_phone"):
             st.error("PDF 생성을 위해 고객명 또는 전화번호를 입력해주세요.")
-        elif not selected_vehicle: # Check if a vehicle was actually selected/determined
+        elif not selected_vehicle:  # Check if a vehicle was actually selected/determined
             st.error("PDF 생성을 위해 차량을 선택(또는 자동 추천)해주세요.")
         else:
             buffer = BytesIO()
@@ -677,7 +677,10 @@ with tab3:
                 # 다운로드 링크 생성
                 pdf_data = buffer.getvalue()
                 b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
-                file_name = f"이사견적서_{customer_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+                
+                # 수정된 부분: 파일명 생성
+                file_name = f"이사견적서_{extract_phone_number_part(st.session_state.get('customer_phone'))}_{datetime.now().strftime('%Y%m%d')}.pdf"
+                
                 href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
                 st.markdown(href, unsafe_allow_html=True)
 
