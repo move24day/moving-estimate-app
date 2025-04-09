@@ -487,7 +487,7 @@ if special_days_cost > 0:
 st.write(f"### 총 비용: {total_cost:,}원 💸")
         
         # 인원 정보 표시
-        st.write("### 👨‍👩‍👧 투입 인원:")
+st.write("### 👨‍👩‍👧 투입 인원:")
         if move_type == '가정 이사 🏠':
             total_men = base_info['men'] + additional_men
             total_women = base_info.get('housewife', 0) + additional_women
