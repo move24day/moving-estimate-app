@@ -323,31 +323,40 @@ with tab2:
     # 차량 추천 및 여유 공간 계산
     recommended_vehicle, remaining_space = recommend_vehicle(total_volume, total_weight)
 
-    # 선택한 품목 정보 출력
-    st.subheader("📦 선택한 품목 정보")
+# 선택한 품목 정보 출력
+st.subheader("📦 선택한 품목 정보")
 
-    if selected_items:
-        item_data = []
-        for item, (qty, unit, vol, weight) in selected_items.items():
-            item_data.append([
-                item, qty, unit, f"{vol:.2f} m³", f"{weight:.1f} kg",
-                f"{qty * vol:.2f} m³", f"{qty * weight:.1f} kg"
-            ])
-        df = pd.DataFrame(item_data, columns=["품목", "수량", "단위", "단위 부피", "단위 무게", "총 부피", "총 무게"])
-        st.dataframe(df, use_container_width=True)
-
-        # 추가 박스 정보
-        if any(additional_boxes.values()):
-            st.subheader("📦 추가 박스 정보")
-            box_data = []
-            for box, count in additional_boxes.items():
-                if count > 0:
-                    vol = box_volumes[box]
-                    box_data.append([box, count, f"{vol:.3f} m³", f"{vol * count:.3f} m³"])
-            df_box = pd.DataFrame(box_data, columns=["박스 종류", "수량", "단위 부피", "총 부피"])
-            st.dataframe(df_box, use_container_width=True)
-    else:
-        st.info("선택된 품목이 없습니다.")
+if selected_items:
+    item_data = []
+    for item, (qty, unit, vol, weight) in selected_items.items():
+        item_data.append([item, f"{qty} {unit}"])
+    df = pd.DataFrame(item_data, columns=["품목", "수량"])
+    st.dataframe(df, use_container_width=True)
+    
+    # 추가 박스 정보
+    if any(additional_boxes.values()):
+        st.subheader("📦 추가 박스 정보")
+        box_data = []
+        for box, count in additional_boxes.items():
+            if count > 0:
+                box_data.append([box, count])
+        df_box = pd.DataFrame(box_data, columns=["박스 종류", "수량"])
+        st.dataframe(df_box, use_container_width=True)
+    
+    # 실시간 차량 추천 정보 표시
+    st.subheader("🚚 추천 차량 정보")
+    recommended_vehicle, remaining_space = recommend_vehicle(total_volume, total_weight)
+    st.info(f"📊 총 부피: {total_volume:.2f} m³ | 총 무게: {total_weight:.2f} kg")
+    st.success(f"🚛 추천 차량: {recommended_vehicle} (여유 공간: {remaining_space:.2f}%)")
+    
+    # 차량 용량 정보 제공
+    st.markdown(f"""
+    **{recommended_vehicle} 정보**:
+    - 최대 적재 부피: {vehicle_capacity[recommended_vehicle]} m³
+    - 최대 적재 무게: {vehicle_weight_capacity[recommended_vehicle]} kg
+    """)
+else:
+    st.info("선택된 품목이 없습니다.")
 
 # 탭 3: 견적 및 비용
 with tab3:
