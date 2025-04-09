@@ -510,7 +510,7 @@ with tab3:
         st.subheader("📝 특이 사항")
         st.info(st.session_state.get('special_notes', ''))
     
-# PDF 견적서 생성 기능
+    # PDF 견적서 생성 기능
 st.subheader("📄 견적서 다운로드")
 if st.button("PDF 견적서 생성"):
     # PDF 생성 로직
