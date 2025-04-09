@@ -471,7 +471,7 @@ with tab3:
         if uses_ladder_to and ladder_to_floor and ladder_to_cost > 0:
             st.write(f"- 도착지 사다리 비용 ({ladder_to_floor}, {selected_vehicle}): {ladder_to_cost:,}원")
         
-        if '스카이' in [from_method, to_method]:
+if '스카이' in [from_method, to_method]:
     st.write(f"- 스카이 사용 비용 ({sky_hours}시간): {sky_cost:,}원")
 
 if additional_people > 0:
