@@ -654,19 +654,3 @@ with tab3:
             href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
             st.markdown(href, unsafe_allow_html=True)
 
-# 앱 메인 실행
-if __name__ == "__main__":
-    st.sidebar.header("👋 통합 이사 비용 계산기")
-    st.sidebar.write("이 앱은 이사 비용을 간편하게 계산할 수 있는 도구입니다.")
-    st.sidebar.write("Step 1: 고객 정보 입력")
-    st.sidebar.write("Step 2: 물품 선택")
-    st.sidebar.write("Step 3: 비용 계산")
-    
-    st.sidebar.header("🏢 회사 정보")
-    st.sidebar.write("회사명: 이사천국")
-    st.sidebar.write("전화번호: 1234-5678")
-    st.sidebar.write("주소: 서울시 이사구 이사동 123-45")
-    
-    # 현재 날짜 표시
-    st.sidebar.header("📅 오늘 날짜")
-    st.sidebar.write(datetime.now(pytz.timezone('Asia/Seoul')).strftime("%Y년 %m월 %d일"))
