@@ -698,18 +698,3 @@ if st.session_state.active_tab_index < len(tabs) - 1:
     if cols_nav[2].button("다음 단계 ➡️", key="next_tab_button"):
         st.session_state.active_tab_index += 1
         st.experimental_rerun() # 페이지 새로고침 (Streamlit 구 버전 방식, 최신 버전은 st.rerun() 권장)
-
-# --- 스크립트 끝 ---
-# 여기에 주석 처리되지 않은 텍스트가 없도록 확인합니다.
-# 예: 주요 변경 및 추가 사항: (<- 이런 라인이 있으면 SyntaxError 발생)
-
-오류 수정 및 코드 변경점:
- * SyntaxError의 원인 제거: 코드 마지막 부분이나 오류가 발생한 라인(641라인 근처)에 주석 처리( #)되지 않은 한글 텍스트나 잘못된 문자가 포함되지 않도록 확인했습니다. (제공된 코드에는 해당 문제가 없었지만, 실제 파일에는 있었을 수 있습니다.)
- * 탭 컨테이너 및 조건부 렌더링: st.tabs를 직접 사용하지 않고, st.container() 내에서 if st.session_state.active_tab_index == [탭 인덱스]: 조건을 사용하여 각 탭의 내용을 표시하도록 구조를 명확히 했습니다. 이는 네비게이션 버튼과 더 잘 작동합니다.
- * 위젯 키(Key) 명시: Streamlit 위젯(radio, checkbox, number_input, button 등)에 고유한 key를 명시적으로 부여했습니다. 이는 상태 관리 및 재실행 시 위젯 상태 유지에 중요합니다.
- * 세션 상태 관리: 스카이 시간(sky_hours_from, sky_hours_final)과 같이 사용자가 입력하는 값을 세션 상태에 저장하고, 위젯의 value에 세션 상태 값을 사용하도록 하여 상태가 유지되도록 했습니다.
- * 변수명 명확화: 일부 컬럼 변수명(col1, col2 등)이 중복 사용될 수 있어, 각 섹션별로 col3, col4, col5, col6 등으로 변경하여 혼동을 줄였습니다.
- * st.experimental_rerun(): 네비게이션 버튼 클릭 시 페이지를 새로고침하는 함수 호출은 그대로 두었습니다. 최신 Streamlit 버전에서는 st.rerun()을 권장하지만, st.experimental_rerun()도 아직 작동합니다.
- * 함수 정의: get_ladder_range 함수의 14-23층 처리 로직을 명확히 했습니다(현재 ladder_prices 구조에서는 개별 층 키가 있으므로 문제없음).
- * 기타: PDF 생성 로직에서 보관이사 관련 정보(제목, 라벨, 추가 정보)가 정확히 반영되도록 수정했습니다.
-이 수정된 코드를 실행해 보시고 여전히 문제가 발생한다면, 오류 메시지와 함께 문제가 발생하는 코드 부분을 좀 더 자세히 알려주시면 추가적으로 확인해 보겠습니다.
