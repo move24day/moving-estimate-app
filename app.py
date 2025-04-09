@@ -376,7 +376,7 @@ with tab3:
         else:
             selected_vehicle = st.selectbox('🚚 차량 톤수 선택:', sorted(list(home_vehicle_prices.keys())))
     
-    # 출발지와 도착지에서 사다리차 사용 확인
+    # 출발지와 도착지에서 사다리차 사용 확인 - 내부 로직만 유지하고 표시는 제거
     uses_ladder_from = False
     uses_ladder_to = False
     ladder_from_floor = None
@@ -389,24 +389,6 @@ with tab3:
     if 'to_method' in st.session_state and st.session_state.to_method == '사다리차' and 'to_floor' in st.session_state:
         uses_ladder_to = True
         ladder_to_floor = get_ladder_range(st.session_state.to_floor)
-    
-    # 사다리 정보 표시
-    if uses_ladder_from or uses_ladder_to:
-        st.subheader('🪜 사다리차 사용 정보')
-        col1, col2 = st.columns(2)
-        with col1:
-            if uses_ladder_from:
-                if ladder_from_floor:
-                    st.info(f'출발지 사다리차 사용: {ladder_from_floor}')
-                else:
-                    st.warning('출발지 층수가 유효하지 않거나 사다리차가 필요하지 않습니다.')
-        
-        with col2:
-            if uses_ladder_to:
-                if ladder_to_floor:
-                    st.info(f'도착지 사다리차 사용: {ladder_to_floor}')
-                else:
-                    st.warning('도착지 층수가 유효하지 않거나 사다리차가 필요하지 않습니다.')
     
     # 스카이 옵션
     sky_hours = 2
@@ -433,231 +415,190 @@ with tab3:
             waste_tons = st.number_input('폐기물 양 (톤)', min_value=0.5, max_value=10.0, value=1.0, step=0.5)
             st.info('💡 폐기물 처리 비용: 1톤당 30만원이 추가됩니다.')
     
-    # 날짜 유형 다중 선택
+    # 날짜 유형 다중 선택 - 평일(일반) 제외
     st.subheader('📅 날짜 유형 선택 (중복 가능)')
-    date_options = list(special_day_prices.keys())
+    date_options = ['이사많은날 🏠', '손없는날 ✋', '월말 📅', '공휴일 🎉']
     selected_dates = []
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
         if st.checkbox(date_options[0]):
             selected_dates.append(date_options[0])
-        if len(date_options) > 2 and st.checkbox(date_options[2]):
+        if st.checkbox(date_options[2]):
             selected_dates.append(date_options[2])
     with col2:
-        if len(date_options) > 1 and st.checkbox(date_options[1]):
+        if st.checkbox(date_options[1]):
             selected_dates.append(date_options[1])
-        if len(date_options) > 3 and st.checkbox(date_options[3]):
+        if st.checkbox(date_options[3]):
             selected_dates.append(date_options[3])
-    with col3:
-        if len(date_options) > 4 and st.checkbox(date_options[4]):
-            selected_dates.append(date_options[4])
     
-    # 선택된 날짜가 없으면 '평일(일반)'을 기본값으로 설정
+    # 선택된 날짜가 없으면 '평일(일반)'을 기본값으로 설정 (내부 로직용)
     if not selected_dates:
         selected_dates.append('평일(일반)')
     
-    # 선택한 물품 간략 표시
-    if st.session_state.selected_items:
-        st.subheader("📦 선택한 물품 정보")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("##### 품목 목록")
-            for item, (qty, unit, _, _) in st.session_state.selected_items.items():
-                st.write(f"- {item}: {qty} {unit}")
-        
-        with col2:
-            st.write("##### 부피 및 무게 정보")
-            st.write(f"- 총 부피: {total_volume:.2f} m³")
-            st.write(f"- 총 무게: {total_weight:.2f} kg")
+    # 실시간 비용 계산
+    # 기본 비용 설정
+    if st.session_state.move_type == '가정 이사 🏠':
+        base_info = home_vehicle_prices.get(selected_vehicle, {'price':0, 'men':0, 'housewife':0})
+    else:
+        base_info = office_vehicle_prices.get(selected_vehicle, {'price':0, 'men':0})
+
+    base_cost = base_info['price']
+    total_cost = base_cost
+
+    # 사다리 비용 계산 (출발지 및 도착지, 5톤 미만은 5톤 가격 적용)
+    ladder_from_cost = ladder_to_cost = 0
+    ladder_vehicle = selected_vehicle if selected_vehicle in ['5톤', '6톤', '7.5톤', '10톤'] else '5톤'
+
+    if uses_ladder_from and ladder_from_floor and ladder_from_floor in ladder_prices and ladder_vehicle in ladder_prices[ladder_from_floor]:
+        ladder_from_cost = ladder_prices[ladder_from_floor][ladder_vehicle]
+        total_cost += ladder_from_cost
     
-    # 비용 계산
-    if st.button('💰 이사 비용 계산하기'):
-        # 기본 비용 설정
-        if st.session_state.move_type == '가정 이사 🏠':
-            base_info = home_vehicle_prices.get(selected_vehicle, {'price':0, 'men':0, 'housewife':0})
-        else:
-            base_info = office_vehicle_prices.get(selected_vehicle, {'price':0, 'men':0})
+    if uses_ladder_to and ladder_to_floor and ladder_to_floor in ladder_prices and ladder_vehicle in ladder_prices[ladder_to_floor]:
+        ladder_to_cost = ladder_prices[ladder_to_floor][ladder_vehicle]
+        total_cost += ladder_to_cost
+    
+    # 스카이 비용 계산
+    sky_cost = 0
+    if 'from_method' in st.session_state and 'to_method' in st.session_state:
+        if '스카이' in [st.session_state.from_method, st.session_state.to_method]:
+            sky_cost = sky_base_price + (sky_hours - 2) * sky_extra_hour_price if sky_hours > 2 else sky_base_price
+            total_cost += sky_cost
+    
+    # 추가 인원 비용 계산
+    additional_person_total = (additional_men + additional_women) * additional_person_cost
+    total_cost += additional_person_total
+    
+    # 폐기물 처리 비용 계산
+    waste_cost = waste_tons * waste_disposal_cost if has_waste else 0
+    total_cost += waste_cost
+    
+    # 특별 날짜 비용 계산
+    special_day_total = sum(special_day_prices[date] for date in selected_dates if date != '평일(일반)')
+    total_cost += special_day_total
 
-        base_cost = base_info['price']
-        total_cost = base_cost
-
-        # 사다리 비용 계산 (출발지 및 도착지, 5톤 미만은 5톤 가격 적용)
-        ladder_from_cost = ladder_to_cost = 0
-        ladder_vehicle = selected_vehicle if selected_vehicle in ['5톤', '6톤', '7.5톤', '10톤'] else '5톤'
-
-        if uses_ladder_from and ladder_from_floor and ladder_from_floor in ladder_prices and ladder_vehicle in ladder_prices[ladder_from_floor]:
-            ladder_from_cost = ladder_prices[ladder_from_floor][ladder_vehicle]
-            total_cost += ladder_from_cost
+    # 실시간 비용 세부 내역 표시
+    st.subheader("💵 실시간 이사 비용 세부 내역")
+    
+    cost_items = [
+        ["기본 이사 비용", f"{base_cost:,}원"],
+        ["출발지 사다리차 비용", f"{ladder_from_cost:,}원"] if ladder_from_cost > 0 else None,
+        ["도착지 사다리차 비용", f"{ladder_to_cost:,}원"] if ladder_to_cost > 0 else None,
+        ["스카이 비용", f"{sky_cost:,}원 (기본 2시간 + 추가 {sky_hours-2}시간)"] if sky_cost > 0 else None,
+        ["추가 인원 비용", f"{additional_person_total:,}원 ({additional_men + additional_women}명)"] if additional_person_total > 0 else None,
+        ["폐기물 처리 비용", f"{waste_cost:,}원 ({waste_tons}톤)"] if waste_cost > 0 else None,
+        ["이사 집중일 부담금", f"{special_day_total:,}원 ({', '.join([date for date in selected_dates if date != '평일(일반)'])})"] if special_day_total > 0 else None
+    ]
+    
+    # None 값 제거
+    cost_items = [item for item in cost_items if item is not None]
+    
+    # 비용 테이블 표시
+    cost_df = pd.DataFrame(cost_items, columns=["항목", "금액"])
+    st.table(cost_df)
+    
+    # 총 비용 표시
+    st.subheader(f"💰 총 견적 비용: {total_cost:,}원")
+    
+    # 특이사항 표시
+    if st.session_state.get('special_notes', ''):
+        st.subheader("📝 특이 사항")
+        st.info(st.session_state.get('special_notes', ''))
+    
+    # PDF 견적서 생성 기능
+    st.subheader("📄 견적서 다운로드")
+    if st.button("PDF 견적서 생성"):
+        # PDF 생성 로직
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        elements = []
         
-        if uses_ladder_to and ladder_to_floor and ladder_to_floor in ladder_prices and ladder_vehicle in ladder_prices[ladder_to_floor]:
-            ladder_to_cost = ladder_prices[ladder_to_floor][ladder_vehicle]
-            total_cost += ladder_to_cost
+        # 제목
+        title_style = styles["Title"]
+        elements.append(Paragraph("이사 견적서", title_style))
+        elements.append(Spacer(1, 12))
         
-        # 스카이 비용 계산
-        sky_cost = 0
-        if 'from_method' in st.session_state and 'to_method' in st.session_state:
-            if '스카이' in [st.session_state.from_method, st.session_state.to_method]:
-                sky_cost = sky_base_price + (sky_hours - 2) * sky_extra_hour_price if sky_hours > 2 else sky_base_price
-                total_cost += sky_cost
-        
-        # 추가 인원 비용 계산
-        additional_person_total = (additional_men + additional_women) * additional_person_cost
-        total_cost += additional_person_total
-        
-        # 폐기물 처리 비용 계산
-        waste_cost = waste_tons * waste_disposal_cost if has_waste else 0
-        total_cost += waste_cost
-        
-        # 특별 날짜 비용 계산
-        special_day_total = sum(special_day_prices[date] for date in selected_dates if date != '평일(일반)')
-        total_cost += special_day_total
-        
-        # 계산 결과 표시
-        st.header("🧾 최종 견적 정보")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("📊 기본 정보")
-            st.write(f"**고객명:** {st.session_state.get('customer_name', '')}")
-            st.write(f"**전화번호:** {st.session_state.get('customer_phone', '')}")
-            st.write(f"**이사 유형:** {st.session_state.move_type}")
-            st.write(f"**이사일:** {st.session_state.get('moving_date', '')}")
-            st.write(f"**견적일:** {estimate_date}")
-            st.write(f"**출발지:** {st.session_state.get('from_location', '')}")
-            st.write(f"**도착지:** {st.session_state.get('to_location', '')}")
-        
-        with col2:
-            st.subheader("🚚 작업 정보")
-            st.write(f"**선택 차량:** {selected_vehicle}")
-            st.write(f"**출발지 층수:** {st.session_state.get('from_floor', '')} ({st.session_state.get('from_method', '')})")
-            st.write(f"**도착지 층수:** {st.session_state.get('to_floor', '')} ({st.session_state.get('to_method', '')})")
-            st.write(f"**기본 작업 인원:** 남성 {base_info['men']}명" + (f", 여성 {base_info.get('housewife', 0)}명" if 'housewife' in base_info else ""))
-            st.write(f"**추가 인원:** 남성 {additional_men}명, 여성 {additional_women}명")
-        
-        # 비용 세부 내역 표시
-        st.subheader("💵 비용 세부 내역")
-        
-        cost_items = [
-            ["기본 이사 비용", f"{base_cost:,}원"],
-            ["출발지 사다리차 비용", f"{ladder_from_cost:,}원"] if ladder_from_cost > 0 else None,
-            ["도착지 사다리차 비용", f"{ladder_to_cost:,}원"] if ladder_to_cost > 0 else None,
-            ["스카이 비용", f"{sky_cost:,}원 (기본 2시간 + 추가 {sky_hours-2}시간)"] if sky_cost > 0 else None,
-            ["추가 인원 비용", f"{additional_person_total:,}원 ({additional_men + additional_women}명)"] if additional_person_total > 0 else None,
-            ["폐기물 처리 비용", f"{waste_cost:,}원 ({waste_tons}톤)"] if waste_cost > 0 else None,
-            ["특별 날짜 추가 비용", f"{special_day_total:,}원 ({', '.join([date for date in selected_dates if date != '평일(일반)'])})"] if special_day_total > 0 else None
+        # 기본 정보
+        elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
+        data = [
+            ["고객명", st.session_state.get('customer_name', '')],
+            ["전화번호", st.session_state.get('customer_phone', '')],
+            ["이사 유형", st.session_state.move_type],
+            ["이사일", str(st.session_state.get('moving_date', ''))],
+            ["견적일", estimate_date],
+            ["출발지", st.session_state.get('from_location', '')],
+            ["도착지", st.session_state.get('to_location', '')]
         ]
         
-        # None 값 제거
-        cost_items = [item for item in cost_items if item is not None]
+        table = Table(data, colWidths=[100, 400])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(table)
+        elements.append(Spacer(1, 12))
         
-        # 비용 테이블 표시
-        cost_df = pd.DataFrame(cost_items, columns=["항목", "금액"])
-        st.table(cost_df)
+        # 작업 정보
+        elements.append(Paragraph("■ 작업 정보", styles["Heading2"]))
+        data = [
+            ["선택 차량", selected_vehicle],
+            ["출발지 층수", f"{st.session_state.get('from_floor', '')} ({st.session_state.get('from_method', '')})"],
+            ["도착지 층수", f"{st.session_state.get('to_floor', '')} ({st.session_state.get('to_method', '')})"],
+            ["기본 작업 인원", f"남성 {base_info['men']}명" + (f", 여성 {base_info.get('housewife', 0)}명" if 'housewife' in base_info else "")],
+            ["추가 인원", f"남성 {additional_men}명, 여성 {additional_women}명"]
+        ]
         
-        # 총 비용 표시
-        st.subheader(f"💰 총 견적 비용: {total_cost:,}원")
+        table = Table(data, colWidths=[100, 400])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(table)
+        elements.append(Spacer(1, 12))
         
-        # 특이사항 표시
+        # 비용 상세 내역
+        elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
+        data = [["항목", "금액"]]
+        for item in cost_items:
+            data.append(item)
+        data.append(["총 견적 비용", f"{total_cost:,}원"])
+        
+        table = Table(data, colWidths=[250, 250])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(table)
+        elements.append(Spacer(1, 12))
+        
+        # 특이 사항
         if st.session_state.get('special_notes', ''):
-            st.subheader("📝 특이 사항")
-            st.info(st.session_state.get('special_notes', ''))
+            elements.append(Paragraph("■ 특이 사항", styles["Heading2"]))
+            elements.append(Paragraph(st.session_state.get('special_notes', ''), styles["Normal"]))
         
-        # PDF 견적서 생성 기능
-        st.subheader("📄 견적서 다운로드")
-        if st.button("PDF 견적서 생성"):
-            # PDF 생성 로직
-            buffer = BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=A4)
-            styles = getSampleStyleSheet()
-            elements = []
-            
-            # 제목
-            title_style = styles["Title"]
-            elements.append(Paragraph("이사 견적서", title_style))
-            elements.append(Spacer(1, 12))
-            
-            # 기본 정보
-            elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
-            data = [
-                ["고객명", st.session_state.get('customer_name', '')],
-                ["전화번호", st.session_state.get('customer_phone', '')],
-                ["이사 유형", st.session_state.move_type],
-                ["이사일", str(st.session_state.get('moving_date', ''))],
-                ["견적일", estimate_date],
-                ["출발지", st.session_state.get('from_location', '')],
-                ["도착지", st.session_state.get('to_location', '')]
-            ]
-            
-            table = Table(data, colWidths=[100, 400])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ]))
-            elements.append(table)
-            elements.append(Spacer(1, 12))
-            
-            # 작업 정보
-            elements.append(Paragraph("■ 작업 정보", styles["Heading2"]))
-            data = [
-                ["선택 차량", selected_vehicle],
-                ["출발지 층수", f"{st.session_state.get('from_floor', '')} ({st.session_state.get('from_method', '')})"],
-                ["도착지 층수", f"{st.session_state.get('to_floor', '')} ({st.session_state.get('to_method', '')})"],
-                ["기본 작업 인원", f"남성 {base_info['men']}명" + (f", 여성 {base_info.get('housewife', 0)}명" if 'housewife' in base_info else "")],
-                ["추가 인원", f"남성 {additional_men}명, 여성 {additional_women}명"]
-            ]
-            
-            table = Table(data, colWidths=[100, 400])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ]))
-            elements.append(table)
-            elements.append(Spacer(1, 12))
-            
-            # 비용 상세 내역
-            elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
-            data = [["항목", "금액"]]
-            for item in cost_items:
-                data.append(item)
-            data.append(["총 견적 비용", f"{total_cost:,}원"])
-            
-            table = Table(data, colWidths=[250, 250])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ]))
-            elements.append(table)
-            elements.append(Spacer(1, 12))
-            
-            # 특이 사항
-            if st.session_state.get('special_notes', ''):
-                elements.append(Paragraph("■ 특이 사항", styles["Heading2"]))
-                elements.append(Paragraph(st.session_state.get('special_notes', ''), styles["Normal"]))
-            
-            # PDF 빌드
-            doc.build(elements)
-            
-            # 다운로드 링크 생성
-            pdf_data = buffer.getvalue()
-            b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
-            
-            # 현재 날짜를 파일명에 포함
-            file_name = f"이사견적서_{st.session_state.get('customer_name', '고객')}_{datetime.now().strftime('%Y%m%d')}.pdf"
-            
-            href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
-            st.markdown(href, unsafe_allow_html=True)
-
+        # PDF 빌드
+        doc.build(elements)
+        
+        # 다운로드 링크 생성
+        pdf_data = buffer.getvalue()
+        b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
+        
+        # 현재 날짜를 파일명에 포함
+        file_name = f"이사견적서_{st.session_state.get('customer_name', '고객')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        
+        href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
+        st.markdown(href, unsafe_allow_html=True)
