@@ -10,13 +10,10 @@ from reportlab.lib import colors
 from io import BytesIO
 
 # 페이지 설정
-st.set_page_config(page_title="통합 이사 비용 계산기", layout="wide")
+st.set_page_config(page_title="이삿날 스마트견적", layout="wide")
 
-# 로고 표시 (화면 좌측 상단)
-try:
-    st.image("logo.png", width=150)
-except:
-    st.title("🚚 통합 이사 비용 계산기")
+# 타이틀 표시 (로고 대체)
+st.title("🚚 이삿날 스마트견적")
 
 # 차량 톤수와 유형에 따른 기본 비용
 office_vehicle_prices = {
@@ -200,7 +197,10 @@ with tab1:
         from_location = st.text_input("📍 출발지", key="from_location")
     
     with col2:
-        customer_phone = st.text_input("📞 전화번호", key="customer_phone")
+        # 전화번호 입력 필드에 숫자 키패드 트리거 추가
+        customer_phone = st.text_input("📞 전화번호", key="customer_phone", 
+                                      help="숫자만 입력하세요", 
+                                      placeholder="01012345678")
         to_location = st.text_input("📍 도착지", key="to_location")
     
     moving_date = st.date_input("🚚 이사일", key="moving_date")
@@ -215,11 +215,17 @@ with tab1:
     method_options = ["사다리차", "승강기", "계단", "스카이"]
     
     with col1:
-        from_floor = st.text_input("🔼 출발지 층수", key="from_floor")
+        # 층수 입력 필드에 숫자 키패드 트리거 추가
+        from_floor = st.text_input("🔼 출발지 층수", key="from_floor", 
+                                 help="숫자만 입력하세요", 
+                                 placeholder="예: 3")
         from_method = st.selectbox("🛗 출발지 작업 방법", method_options, key='from_method')
     
     with col2:
-        to_floor = st.text_input("🔽 도착지 층수", key="to_floor")
+        # 층수 입력 필드에 숫자 키패드 트리거 추가
+        to_floor = st.text_input("🔽 도착지 층수", key="to_floor", 
+                               help="숫자만 입력하세요", 
+                               placeholder="예: 5")
         to_method = st.selectbox("🛗 도착지 작업 방법", method_options, key='to_method')
     
     st.header("🗒️ 특이 사항 입력")
