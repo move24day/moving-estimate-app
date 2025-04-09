@@ -533,8 +533,8 @@ with tab3:
     st.subheader("📄 견적서 다운로드")
     if st.button("PDF 견적서 생성"):
         # Check if essential info is present before generating PDF
-        if not st.session_state.get("customer_name"):
-            st.error("PDF 생성을 위해 고객명을 입력해주세요.")
+        if not st.session_state.get("customer_name") and not st.session_state.get("customer_phone"):
+            st.error("PDF 생성을 위해 고객명 또는 전화번호를 입력해주세요.")
         elif not selected_vehicle: # Check if a vehicle was actually selected/determined
             st.error("PDF 생성을 위해 차량을 선택(또는 자동 추천)해주세요.")
         else:
@@ -577,13 +577,17 @@ with tab3:
             # 2. 기본 정보 표 추가
             elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
             elements.append(Spacer(1, 5)) # 섹션 제목 아래 작은 간격
+
+            # 고객명 처리: 고객명 없을 시 전화번호 사용
+            customer_name = st.session_state.get("customer_name") or st.session_state.get("customer_phone") or "미정"
+
             # 기본 정보 데이터 준비
             basic_data = [
-                ["고객명", st.session_state.get("customer_name", "")],
-                ["전화번호", st.session_state.get("customer_phone", "")],
+                ["고객명", customer_name],
+                ["전화번호", st.session_state.get("customer_phone", "미정")],
                 ["이사일", str(st.session_state.get("moving_date", ""))], # 날짜는 문자열로
-                ["출발지", st.session_state.get("from_location", "")],
-                ["도착지", st.session_state.get("to_location", "")],
+                ["출발지", st.session_state.get("from_location", "미정")],
+                ["도착지", st.session_state.get("to_location", "미정")],
                 ["견적일", estimate_date], # Tab 1에서 계산된 값 사용
             ]
             # 기본 정보 테이블 생성 및 스타일 적용
@@ -613,8 +617,8 @@ with tab3:
 
             work_data = [
                 ["선택 차량", selected_vehicle],
-                ["출발지", f"{st.session_state.get('from_floor', '')}층 ({st.session_state.get('from_method', '')})"],
-                ["도착지", f"{st.session_state.get('to_floor', '')}층 ({st.session_state.get('to_method', '')})"],
+                ["출발지", f"{st.session_state.get('from_floor', '미정')}층 ({st.session_state.get('from_method', '미정')})"],
+                ["도착지", f"{st.session_state.get('to_floor', '미정')}층 ({st.session_state.get('to_method', '미정')})"],
                 ["기본 투입 인원", f"남성 {current_base_info.get('men', 0)}명" + (f", 여성 {current_base_info.get('housewife', 0)}명" if current_base_info.get('housewife', 0) > 0 else "")],
                 ["추가 투입 인원", f"남성 {additional_men}명, 여성 {additional_women}명"],
             ]
@@ -672,7 +676,7 @@ with tab3:
                 # 다운로드 링크 생성
                 pdf_data = buffer.getvalue()
                 b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
-                file_name = f"이사견적서_{st.session_state.get('customer_name', '고객')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+                file_name = f"이사견적서_{customer_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
                 href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
                 st.markdown(href, unsafe_allow_html=True)
 
