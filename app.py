@@ -486,21 +486,22 @@ if special_days_cost > 0:
 
 st.write(f"### 총 비용: {total_cost:,}원 💸")
         
-        # 인원 정보 표시
+# 인원 정보 표시
 st.write("### 👨‍👩‍👧 투입 인원:")
-        if move_type == '가정 이사 🏠':
-            total_men = base_info['men'] + additional_men
-            total_women = base_info.get('housewife', 0) + additional_women
-            st.write(f"- 남성 작업자 👨: {total_men}명 (기본 {base_info['men']}명 + 추가 {additional_men}명)")
-            st.write(f"- 여성 작업자 👩: {total_women}명 (기본 {base_info.get('housewife', 0)}명 + 추가 {additional_women}명)")
-        else:
-            total_men = base_info['men'] + additional_men
-            st.write(f"- 남성 작업자 👨: {total_men}명 (기본 {base_info['men']}명 + 추가 {additional_men}명)")
-            if additional_women > 0:
-                st.write(f"- 여성 작업자 👩: {additional_women}명")
-        
-        # 품목 및 부피 정보 요약
-        st.write("### 📊 물품 정보 요약:")
-        st.write(f"- 총 부피: {total_volume:.2f} m³")
-        st.write(f"- 총 무게: {total_weight:.2f} kg")
-        st.write(f"- 추천 차량: {recommended_vehicle} (여유 공간: {remaining_space:.2f}%)")
+if move_type == '가정 이사 🏠':
+    total_men = base_info['men'] + additional_men
+    total_women = base_info.get('housewife', 0) + additional_women
+    st.write(f"- 남성 작업자 👨: {total_men}명 (기본 {base_info['men']}명 + 추가 {additional_men}명)")
+    st.write(f"- 여성 작업자 👩: {total_women}명 (기본 {base_info.get('housewife', 0)}명 + 추가 {additional_women}명)")
+else:
+    total_men = base_info['men'] + additional_men
+    st.write(f"- 남성 작업자 👨: {total_men}명 (기본 {base_info['men']}명 + 추가 {additional_men}명)")
+    if additional_women > 0:
+        st.write(f"- 여성 작업자 👩: {additional_women}명")
+
+# 품목 및 부피 정보 요약
+st.write("### 📊 물품 정보 요약:")
+st.write(f"- 총 부피: {total_volume:.2f} m³")
+st.write(f"- 총 무게: {total_weight:.2f} kg")
+st.write(f"- 추천 차량: {recommended_vehicle} (여유 공간: {remaining_space:.2f}%)")
+
