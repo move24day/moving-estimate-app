@@ -670,24 +670,23 @@ with tab3:
     elements.append(cost_table)
     elements.append(Spacer(1, 12))
 
-            # 5. 특이 사항 추가
-            special_notes_text = st.session_state.get("special_notes", "")
-            if special_notes_text:
-                elements.append(Paragraph("■ 특이 사항", styles["Heading2"]))
-                elements.append(Spacer(1, 5))
-                elements.append(Paragraph(special_notes_text, styles["Normal"]))
-                elements.append(Spacer(1, 12))
+        # 5. 특이 사항 추가
+        if st.session_state.get("special_notes"):
+            elements.append(Paragraph("■ 특이 사항", styles["Heading2"]))
+            elements.append(Spacer(1, 5))
+            elements.append(Paragraph(st.session_state.get("special_notes"), styles["Normal"]))
+            elements.append(Spacer(1, 12))
 
-            # PDF 빌드 (Try-Except 추가)
-            try:
-                doc.build(elements)
+        # PDF 빌드 (Try-Except 추가)
+        try:
+            doc.build(elements)
 
-                # 다운로드 링크 생성
-                pdf_data = buffer.getvalue()
-                b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
-                file_name = f"이사견적서_{customer_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
-                href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
-                st.markdown(href, unsafe_allow_html=True)
+            # 다운로드 링크 생성
+            pdf_data = buffer.getvalue()
+            b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
+            file_name = f"이사견적서_{customer_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
+            st.markdown(href, unsafe_allow_html=True)
 
-            except Exception as e:
-                st.error(f"PDF 문서 빌드 중 오류가 발생했습니다: {e}")
+        except Exception as e:
+            st.error(f"PDF 문서 빌드 중 오류가 발생했습니다: {e}")
