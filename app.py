@@ -8,7 +8,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from io import BytesIO
-import os # 폰트 경로 관련
+import os
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # 페이지 설정
 st.set_page_config(page_title="이삿날 스마트견적", layout="wide")
@@ -72,14 +74,14 @@ special_day_prices = {
 }
 
 # 추가 인원 비용
-additional_person_cost = 200000  # 추가 인원 1명당 20만원
+additional_person_cost = 200000 # 추가 인원 1명당 20만원
 
 # 폐기물 처리 비용
-waste_disposal_cost = 300000  # 폐기물 1톤당 30만원
+waste_disposal_cost = 300000 # 폐기물 1톤당 30만원
 
 # 스카이 비용
-sky_base_price = 300000  # 기본 2시간
-sky_extra_hour_price = 50000  # 추가 시간당
+sky_base_price = 300000 # 기본 2시간
+sky_extra_hour_price = 50000 # 추가 시간당
 
 # 품목 데이터 (부피 m³, 무게 kg)
 items = {
@@ -122,7 +124,7 @@ vehicle_weight_capacity = {
 # (이 부분은 변경 없음)
 # 차량 추천 함수
 def recommend_vehicle(total_volume, total_weight):
-    loading_efficiency = 0.90  # 적재 효율 90%
+    loading_efficiency = 0.90 # 적재 효율 90%
 
     # 부피 기준 오름차순 정렬된 차량 이름 리스트
     sorted_vehicles_by_capacity = sorted(vehicle_capacity.keys(), key=lambda x: vehicle_capacity[x])
@@ -142,12 +144,11 @@ def recommend_vehicle(total_volume, total_weight):
             # 이론상 발생하면 안 되지만, 데이터 오류 방지
             print(f"Warning: Vehicle data missing for {name}")
 
-
     # 모든 차량 용량을 초과하는 경우
     # 가장 큰 차량 정보 반환 시도 (또는 특정 메시지)
     largest_vehicle = sorted_vehicles_by_capacity[-1] if sorted_vehicles_by_capacity else None
     if largest_vehicle:
-         return f"{largest_vehicle} 초과", 0 # 또는 다른 적절한 메시지
+        return f"{largest_vehicle} 초과", 0 # 또는 다른 적절한 메시지
     else:
         return "차량 정보 없음", 0
 
@@ -157,7 +158,7 @@ def get_ladder_range(floor):
     try:
         floor_num = int(floor)
         if floor_num < 2:
-            return None  # 1층 이하는 사다리 필요 없음
+            return None # 1층 이하는 사다리 필요 없음
         elif 2 <= floor_num <= 5: return "2~5층"
         elif 6 <= floor_num <= 7: return "6~7층"
         elif 8 <= floor_num <= 9: return "8~9층"
@@ -175,7 +176,7 @@ def get_ladder_range(floor):
         elif floor_num == 23: return "23층"
         elif floor_num >= 24: return "24층"
     except (ValueError, TypeError): # 숫자가 아니거나 None인 경우 등 처리
-        return None  # 숫자로 변환할 수 없는 경우
+        return None # 숫자로 변환할 수 없는 경우
 
     return None
 
@@ -510,14 +511,14 @@ with tab3:
     # --- (실시간 비용 세부 내역 표시 - 이 부분 변경 없음) ---
     st.subheader("💵 실시간 이사 비용 세부 내역")
     cost_items = [
-         ["기본 이사 비용", f"{base_cost:,}원"],
-         (["출발지 사다리차 비용", f"{ladder_from_cost:,}원"] if ladder_from_cost > 0 else None),
-         (["도착지 사다리차 비용", f"{ladder_to_cost:,}원"] if ladder_to_cost > 0 else None),
-         (["스카이 비용", f"{sky_cost:,}원 ({sky_hours}시간 사용)" ] if sky_cost > 0 else None), # Simplified text
-         (["추가 인원 비용", f"{additional_person_total:,}원 ({additional_men + additional_women}명)"] if additional_person_total > 0 else None),
-         (["폐기물 처리 비용", f"{waste_cost:,}원 ({waste_tons}톤)"] if waste_cost > 0 else None),
-         (["이사 집중일 부담금", f"{special_day_cost_factor:,}원 ({', '.join(selected_dates_display)})"] if special_day_cost_factor > 0 else None),
-     ]
+        ["기본 이사 비용", f"{base_cost:,}원"],
+        (["출발지 사다리차 비용", f"{ladder_from_cost:,}원"] if ladder_from_cost > 0 else None),
+        (["도착지 사다리차 비용", f"{ladder_to_cost:,}원"] if ladder_to_cost > 0 else None),
+        (["스카이 비용", f"{sky_cost:,}원 ({sky_hours}시간 사용)" ] if sky_cost > 0 else None), # Simplified text
+        (["추가 인원 비용", f"{additional_person_total:,}원 ({additional_men + additional_women}명)"] if additional_person_total > 0 else None),
+        (["폐기물 처리 비용", f"{waste_cost:,}원 ({waste_tons}톤)"] if waste_cost > 0 else None),
+        (["이사 집중일 부담금", f"{special_day_cost_factor:,}원 ({', '.join(selected_dates_display)})"] if special_day_cost_factor > 0 else None),
+    ]
     cost_items = [item for item in cost_items if item is not None] # Filter out None items
     cost_df = pd.DataFrame(cost_items, columns=["항목", "금액"])
     st.table(cost_df)
@@ -528,153 +529,152 @@ with tab3:
         st.subheader("📝 특이 사항")
         st.info(st.session_state.get("special_notes", ""))
 
-
-# --- (PDF 견적서 생성 기능 - 수정된 부분) ---
-st.subheader("📄 견적서 다운로드")
-if st.button("PDF 견적서 생성"):
-    # Check if essential info is present before generating PDF
-    if not st.session_state.get("customer_name"):
-        st.error("PDF 생성을 위해 고객명을 입력해주세요.")
-    elif not selected_vehicle: # Check if a vehicle was actually selected/determined
-        st.error("PDF 생성을 위해 차량을 선택(또는 자동 추천)해주세요.")
-    else:
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
-
-        # 한글 폰트 경로 설정 (환경에 맞게 수정 필요)
-        # 예: 로컬 / Streamlit Cloud 등
-        font_path = "NanumGothic.ttf" # 기본 경로 (파일이 같은 폴더에 있다고 가정)
-        # Sreamlit Cloud 등에서는 절대 경로 또는 상대 경로 확인 필요
-        # font_path = os.path.join(os.path.dirname(__file__), "NanumGothic.ttf")
-
-        font_registered = False
-        try:
-            if os.path.exists(font_path):
-                 pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
-                 font_registered = True
-            else:
-                 st.error(f"폰트 파일({font_path})을 찾을 수 없습니다. 기본 폰트로 PDF가 생성됩니다.")
-        except Exception as e:
-            st.error(f"폰트 등록 중 오류 발생: {e}. 기본 폰트로 PDF가 생성됩니다.")
-
-
-        styles = getSampleStyleSheet()
-        if font_registered:
-            styles["Title"].fontName = "NanumGothic"
-            styles["Normal"].fontName = "NanumGothic"
-            styles["Heading1"].fontName = "NanumGothic"
-            styles["Heading2"].fontName = "NanumGothic"
-            # 필요시 다른 스타일도 설정
-            # styles.add(ParagraphStyle(name='BodyText', fontName='NanumGothic', fontSize=10))
-
-
-        elements = []  # PDF 내용을 담을 리스트 초기화
-
-        # 1. 제목 추가
-        elements.append(Paragraph("이사 견적서", styles["Title"]))
-        elements.append(Spacer(1, 20)) # 제목 아래 간격 증가
-
-        # 2. 기본 정보 표 추가
-        elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
-        elements.append(Spacer(1, 5)) # 섹션 제목 아래 작은 간격
-        # 기본 정보 데이터 준비
-        basic_data = [
-            ["고객명", st.session_state.get("customer_name", "")],
-            ["전화번호", st.session_state.get("customer_phone", "")],
-            ["이사일", str(st.session_state.get("moving_date", ""))], # 날짜는 문자열로
-            ["출발지", st.session_state.get("from_location", "")],
-            ["도착지", st.session_state.get("to_location", "")],
-            ["견적일", estimate_date], # Tab 1에서 계산된 값 사용
-        ]
-        # 기본 정보 테이블 생성 및 스타일 적용
-        basic_table = Table(basic_data, colWidths=[100, 350]) # 너비 조정
-        basic_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('ALIGN', (0, 0), (-1, -1), "LEFT"),
-            ('VALIGN', (0, 0), (-1, -1), "MIDDLE"), # 수직 정렬
-            ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"), # 폰트 적용
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ]))
-        elements.append(basic_table)
-        elements.append(Spacer(1, 12)) # 표 아래 간격
-
-        # 3. 작업 정보 표 추가 (★ 새로 추가된 부분)
-        elements.append(Paragraph("■ 작업 정보", styles["Heading2"]))
-        elements.append(Spacer(1, 5))
-        # 작업 정보 데이터 준비 (base_info 사용 전에 selected_vehicle 기반으로 다시 가져오기)
-        current_base_info = {}
-        if st.session_state.move_type == "가정 이사 🏠":
-            current_base_info = home_vehicle_prices.get(selected_vehicle, {"men": 0, "housewife": 0})
+    # --- (PDF 견적서 생성 기능 - 수정된 부분) ---
+    st.subheader("📄 견적서 다운로드")
+    if st.button("PDF 견적서 생성"):
+        # Check if essential info is present before generating PDF
+        if not st.session_state.get("customer_name"):
+            st.error("PDF 생성을 위해 고객명을 입력해주세요.")
+        elif not selected_vehicle: # Check if a vehicle was actually selected/determined
+            st.error("PDF 생성을 위해 차량을 선택(또는 자동 추천)해주세요.")
         else:
-            current_base_info = office_vehicle_prices.get(selected_vehicle, {"men": 0})
-            current_base_info["housewife"] = 0 # 사무실 이사 시 주부 인원 0명 보장
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=A4)
 
-        work_data = [
-            ["선택 차량", selected_vehicle],
-            ["출발지", f"{st.session_state.get('from_floor', '')}층 ({st.session_state.get('from_method', '')})"],
-            ["도착지", f"{st.session_state.get('to_floor', '')}층 ({st.session_state.get('to_method', '')})"],
-            ["기본 투입 인원", f"남성 {current_base_info.get('men', 0)}명" + (f", 여성 {current_base_info.get('housewife', 0)}명" if current_base_info.get('housewife', 0) > 0 else "")],
-            ["추가 투입 인원", f"남성 {additional_men}명, 여성 {additional_women}명"],
-        ]
-        # 작업 정보 테이블 생성 및 스타일 적용
-        work_table = Table(work_data, colWidths=[100, 350]) # 너비 조정
-        work_table.setStyle(TableStyle([ # 동일한 스타일 적용 (기본 정보와)
-             ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-             ('ALIGN', (0, 0), (-1, -1), "LEFT"),
-             ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
-             ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"),
-             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-             ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ]))
-        elements.append(work_table)
-        elements.append(Spacer(1, 12))
+            # 한글 폰트 경로 설정 (환경에 맞게 수정 필요)
+            # 예: 로컬 / Streamlit Cloud 등
+            font_path = "NanumGothic.ttf" # 기본 경로 (파일이 같은 폴더에 있다고 가정)
+            # Streamlit Cloud 등에서는 절대 경로 또는 상대 경로 확인 필요
+            if "RUNNING_ON_STREAMLIT_CLOUD" in os.environ:
+                font_path = "/app/NanumGothic.ttf"  # Streamlit Cloud 경로 예시
+            elif os.path.exists("./NanumGothic.ttf"):
+                font_path = "./NanumGothic.ttf"
 
-        # 4. 비용 상세 내역 표 추가 (★ 새로 추가된 부분)
-        elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
-        elements.append(Spacer(1, 5))
-        # 비용 데이터 준비 (Tab 3에서 계산된 cost_items 사용)
-        cost_data = [["항목", "금액"]] # 헤더 추가
-        cost_data.extend(cost_items) # 계산된 비용 항목 추가
-        cost_data.append(["총 견적 비용", f"{total_cost:,}원"]) # 총 비용 추가
-        # 비용 상세 내역 테이블 생성 및 스타일 적용
-        cost_table = Table(cost_data, colWidths=[300, 150]) # 너비 조정
-        cost_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),      # 첫 행(헤더) 배경색
-            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),    # 마지막 행(총계) 배경색
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('ALIGN', (0, 0), (-1, -1), "LEFT"),
-            ('ALIGN', (1, 1), (1, -1), "RIGHT"),                   # 금액 오른쪽 정렬 (헤더 제외)
-            ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
-            ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"),
-            ('FONTNAME', (0, 0), (-1, 0), "NanumGothic" if font_registered else "Helvetica-Bold"), # 헤더 폰트 (Bold는 선택)
-            ('FONTNAME', (0, -1), (-1,-1), "NanumGothic" if font_registered else "Helvetica-Bold"),# 총계 폰트 (Bold는 선택)
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ]))
-        elements.append(cost_table)
-        elements.append(Spacer(1, 12))
+            font_registered = False
+            try:
+                if os.path.exists(font_path):
+                    pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
+                    font_registered = True
+                else:
+                    st.error(f"폰트 파일({font_path})을 찾을 수 없습니다. 기본 폰트로 PDF가 생성됩니다.")
+            except Exception as e:
+                st.error(f"폰트 등록 중 오류 발생: {e}. 기본 폰트로 PDF가 생성됩니다.")
 
-        # 5. 특이 사항 추가
-        special_notes_text = st.session_state.get("special_notes", "")
-        if special_notes_text:
-            elements.append(Paragraph("■ 특이 사항", styles["Heading2"]))
+            styles = getSampleStyleSheet()
+            if font_registered:
+                styles["Title"].fontName = "NanumGothic"
+                styles["Normal"].fontName = "NanumGothic"
+                styles["Heading1"].fontName = "NanumGothic"
+                styles["Heading2"].fontName = "NanumGothic"
+                # 필요시 다른 스타일도 설정
+
+            elements = []  # PDF 내용을 담을 리스트 초기화
+
+            # 1. 제목 추가
+            elements.append(Paragraph("이사 견적서", styles["Title"]))
+            elements.append(Spacer(1, 20)) # 제목 아래 간격 증가
+
+            # 2. 기본 정보 표 추가
+            elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
+            elements.append(Spacer(1, 5)) # 섹션 제목 아래 작은 간격
+            # 기본 정보 데이터 준비
+            basic_data = [
+                ["고객명", st.session_state.get("customer_name", "")],
+                ["전화번호", st.session_state.get("customer_phone", "")],
+                ["이사일", str(st.session_state.get("moving_date", ""))], # 날짜는 문자열로
+                ["출발지", st.session_state.get("from_location", "")],
+                ["도착지", st.session_state.get("to_location", "")],
+                ["견적일", estimate_date], # Tab 1에서 계산된 값 사용
+            ]
+            # 기본 정보 테이블 생성 및 스타일 적용
+            basic_table = Table(basic_data, colWidths=[100, 350]) # 너비 조정
+            basic_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), "LEFT"),
+                ('VALIGN', (0, 0), (-1, -1), "MIDDLE"), # 수직 정렬
+                ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"), # 폰트 적용
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(basic_table)
+            elements.append(Spacer(1, 12)) # 표 아래 간격
+
+            # 3. 작업 정보 표 추가 (★ 새로 추가된 부분)
+            elements.append(Paragraph("■ 작업 정보", styles["Heading2"]))
             elements.append(Spacer(1, 5))
-            elements.append(Paragraph(special_notes_text, styles["Normal"]))
+            # 작업 정보 데이터 준비 (base_info 사용 전에 selected_vehicle 기반으로 다시 가져오기)
+            current_base_info = {}
+            if st.session_state.move_type == "가정 이사 🏠":
+                current_base_info = home_vehicle_prices.get(selected_vehicle, {"men": 0, "housewife": 0})
+            else:
+                current_base_info = office_vehicle_prices.get(selected_vehicle, {"men": 0})
+                current_base_info["housewife"] = 0 # 사무실 이사 시 주부 인원 0명 보장
+
+            work_data = [
+                ["선택 차량", selected_vehicle],
+                ["출발지", f"{st.session_state.get('from_floor', '')}층 ({st.session_state.get('from_method', '')})"],
+                ["도착지", f"{st.session_state.get('to_floor', '')}층 ({st.session_state.get('to_method', '')})"],
+                ["기본 투입 인원", f"남성 {current_base_info.get('men', 0)}명" + (f", 여성 {current_base_info.get('housewife', 0)}명" if current_base_info.get('housewife', 0) > 0 else "")],
+                ["추가 투입 인원", f"남성 {additional_men}명, 여성 {additional_women}명"],
+            ]
+            # 작업 정보 테이블 생성 및 스타일 적용
+            work_table = Table(work_data, colWidths=[100, 350]) # 너비 조정
+            work_table.setStyle(TableStyle([ # 동일한 스타일 적용 (기본 정보와)
+                ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), "LEFT"),
+                ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
+                ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(work_table)
             elements.append(Spacer(1, 12))
 
-        # PDF 빌드 (Try-Except 추가)
-        try:
-            doc.build(elements)
+            # 4. 비용 상세 내역 표 추가 (★ 새로 추가된 부분)
+            elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
+            elements.append(Spacer(1, 5))
+            # 비용 데이터 준비 (Tab 3에서 계산된 cost_items 사용)
+            cost_data = [["항목", "금액"]] # 헤더 추가
+            cost_data.extend(cost_items) # 계산된 비용 항목 추가
+            cost_data.append(["총 견적 비용", f"{total_cost:,}원"]) # 총 비용 추가
+            # 비용 상세 내역 테이블 생성 및 스타일 적용
+            cost_table = Table(cost_data, colWidths=[300, 150]) # 너비 조정
+            cost_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),      # 첫 행(헤더) 배경색
+                ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),      # 마지막 행(총계) 배경색
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), "LEFT"),
+                ('ALIGN', (1, 1), (1, -1), "RIGHT"),                  # 금액 오른쪽 정렬 (헤더 제외)
+                ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
+                ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"),
+                ('FONTNAME', (0, 0), (-1, 0), "NanumGothic" if font_registered else "Helvetica-Bold"), # 헤더 폰트 (Bold는 선택)
+                ('FONTNAME', (0, -1), (-1,-1), "NanumGothic" if font_registered else "Helvetica-Bold"),# 총계 폰트 (Bold는 선택)
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(cost_table)
+            elements.append(Spacer(1, 12))
 
-            # 다운로드 링크 생성
-            pdf_data = buffer.getvalue()
-            b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
-            file_name = f"이사견적서_{st.session_state.get('customer_name', '고객')}_{datetime.now().strftime('%Y%m%d')}.pdf"
-            href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
-            st.markdown(href, unsafe_allow_html=True)
+            # 5. 특이 사항 추가
+            special_notes_text = st.session_state.get("special_notes", "")
+            if special_notes_text:
+                elements.append(Paragraph("■ 특이 사항", styles["Heading2"]))
+                elements.append(Spacer(1, 5))
+                elements.append(Paragraph(special_notes_text, styles["Normal"]))
+                elements.append(Spacer(1, 12))
 
-        except Exception as e:
-            st.error(f"PDF 문서 빌드 중 오류가 발생했습니다: {e}")
+            # PDF 빌드 (Try-Except 추가)
+            try:
+                doc.build(elements)
+
+                # 다운로드 링크 생성
+                pdf_data = buffer.getvalue()
+                b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
+                file_name = f"이사견적서_{st.session_state.get('customer_name', '고객')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+                href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
+                st.markdown(href, unsafe_allow_html=True)
+
+            except Exception as e:
+                st.error(f"PDF 문서 빌드 중 오류가 발생했습니다: {e}")
