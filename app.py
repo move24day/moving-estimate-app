@@ -660,38 +660,33 @@ if st.button("PDF 견적서 생성"):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
 
-    # 한글 폰트 등록
+    # 한글 폰트 등록 및 스타일 정의
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
     pdfmetrics.registerFont(TTFont("NanumGothic", "NanumGothic.ttf"))
 
-    # 스타일 정의
     styles = getSampleStyleSheet()
     styles["Title"].fontName = "NanumGothic"
     styles["Normal"].fontName = "NanumGothic"
     styles["Heading1"].fontName = "NanumGothic"
     styles["Heading2"].fontName = "NanumGothic"
 
-    elements = []  # 반드시 여기에 있어야 합니다.
+    elements = []  # 여기에서 정의됨!
 
-    # 아래 코드들은 모두 elements 정의 뒤에 와야 합니다.
+    # 이제 여기서부터 요소 추가
     elements.append(Paragraph("이사 견적서", styles["Title"]))
     elements.append(Spacer(1, 12))
 
     # 기본 정보 추가
     elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
-data = [
-    ["고객명", st.session_state.get("customer_name", "")],
-    ["전화번호", st.session_state.get("customer_phone", "")],
-    ["이사 유형", st.session_state.move_type],
-    ["이사일", str(st.session_state.get("moving_date", ""))],
-    ["견적일", estimate_date],
-    ["출발지", st.session_state.get("from_location", "")],
-    ["도착지", st.session_state.get("to_location", "")],
-]
-
-table = Table(data, colWidths=[100, 400])
+    data = [
+        ["고객명", st.session_state.get("customer_name", "")],
+        ["전화번호", st.session_state.get("customer_phone", "")],
+        # ...
+    ]
+    table = Table(data, colWidths=[100, 400])
+    elements.append(table) 
 table.setStyle(
     TableStyle(
         [
