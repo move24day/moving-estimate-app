@@ -678,94 +678,100 @@ if st.button("PDF 견적서 생성"):
     elements.append(Paragraph("이사 견적서", styles["Title"]))
     elements.append(Spacer(1, 12))
 
-    # 기본 정보 추가
-    elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
-    data = [
-        ["고객명", st.session_state.get("customer_name", "")],
-        ["전화번호", st.session_state.get("customer_phone", "")],
-        # ...
-    ]
-    table = Table(data, colWidths=[100, 400])
-    elements.append(table) 
-table.setStyle(
-    TableStyle(
-        [
-            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
-            ("GRID", (0, 0), (-1, -1), 1, colors.black),
-            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ]
-    )
-)
-elements.append(table)
-elements.append(Spacer(1, 12))
-
-# 작업 정보
-elements.append(Paragraph("■ 작업 정보", styles["Heading2"]))
+# 기본 정보 추가
+elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
 data = [
-    ["선택 차량", selected_vehicle],
-    [
-        "출발지 층수",
-        f"{st.session_state.get('from_floor', '')} ({st.session_state.get('from_method', '')})",
-    ],
-    [
-        "도착지 층수",
-        f"{st.session_state.get('to_floor', '')} ({st.session_state.get('to_method', '')})",
-    ],
-    [
-        "기본 작업 인원",
-        f"남성 {base_info['men']}명"
-        + (
-            f", 여성 {base_info.get('housewife', 0)}명"
-            if "housewife" in base_info
-            else ""
-        ),
-    ],
-    ["추가 인원", f"남성 {additional_men}명, 여성 {additional_women}명"],
+    ["고객명", st.session_state.get("customer_name", "")],
+    ["전화번호", st.session_state.get("customer_phone", "")],
+    # PDF에 넣고 싶은 다른 기본 정보도 이 아래에 추가하세요!
+    ["이사일", str(st.session_state.get("moving_date", "정보없음"))], # 이사일 추가 (문자열로)
+    ["출발지", st.session_state.get("from_location", "정보없음")],   # 출발지 추가
+    ["도착지", st.session_state.get("to_location", "정보없음")],     # 도착지 추가
+    ["견적일", estimate_date],                          # 견적일 추가 (이미 만들어져 있음)
 ]
 
+# 1. 표 만들기
 table = Table(data, colWidths=[100, 400])
+
+# 2. 표 꾸미기 (스타일 적용)
 table.setStyle(
     TableStyle(
         [
-            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
-            ("GRID", (0, 0), (-1, -1), 1, colors.black),
-            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey), # 첫 번째 세로줄 배경색
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),       # 표 테두리 선
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),               # 글자 왼쪽 정렬
+            ("FONTNAME", (0, 0), (-1,-1), "NanumGothic"),      # 표 전체 글꼴 (한글 때문에 중요!)
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),            # 글자 아래쪽 여백
+            ("TOPPADDING", (0, 0), (-1, -1), 6),               # 글자 위쪽 여백
         ]
     )
 )
+
+# 3. 다 만들어진 표를 PDF 문서 목록에 추가 (★ 중요: 한 번만 추가!)
 elements.append(table)
-elements.append(Spacer(1, 12))
+elements.append(Spacer(1, 12)) # 표 아래에 약간의 공간 추가# 기본 정보 추가
+elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
+data = [
+    ["고객명", st.session_state.get("customer_name", "")],
+    ["전화번호", st.session_state.get("customer_phone", "")],
+    # PDF에 넣고 싶은 다른 기본 정보도 이 아래에 추가하세요!
+    ["이사일", str(st.session_state.get("moving_date", "정보없음"))], # 이사일 추가 (문자열로)
+    ["출발지", st.session_state.get("from_location", "정보없음")],   # 출발지 추가
+    ["도착지", st.session_state.get("to_location", "정보없음")],     # 도착지 추가
+    ["견적일", estimate_date],                          # 견적일 추가 (이미 만들어져 있음)
+]
 
-# 비용 상세 내역
-elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
-data = [["항목", "금액"]]
-for item in cost_items:
-    data.append(item)
-data.append(["총 견적 비용", f"{total_cost:,}원"])
+# 1. 표 만들기
+table = Table(data, colWidths=[100, 400])
 
-table = Table(data, colWidths=[250, 250])
+# 2. 표 꾸미기 (스타일 적용)
 table.setStyle(
     TableStyle(
         [
-            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-            ("BACKGROUND", (0, -1), (-1, -1), colors.lightgrey),
-            ("GRID", (0, 0), (-1, -1), 1, colors.black),
-            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey), # 첫 번째 세로줄 배경색
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),       # 표 테두리 선
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),               # 글자 왼쪽 정렬
+            ("FONTNAME", (0, 0), (-1,-1), "NanumGothic"),      # 표 전체 글꼴 (한글 때문에 중요!)
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),            # 글자 아래쪽 여백
+            ("TOPPADDING", (0, 0), (-1, -1), 6),               # 글자 위쪽 여백
         ]
     )
 )
+
+# 3. 다 만들어진 표를 PDF 문서 목록에 추가 (★ 중요: 한 번만 추가!)
 elements.append(table)
-elements.append(Spacer(1, 12))
+elements.append(Spacer(1, 12)) # 표 아래에 약간의 공간 추가# 기본 정보 추가
+elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
+data = [
+    ["고객명", st.session_state.get("customer_name", "")],
+    ["전화번호", st.session_state.get("customer_phone", "")],
+    # PDF에 넣고 싶은 다른 기본 정보도 이 아래에 추가하세요!
+    ["이사일", str(st.session_state.get("moving_date", "정보없음"))], # 이사일 추가 (문자열로)
+    ["출발지", st.session_state.get("from_location", "정보없음")],   # 출발지 추가
+    ["도착지", st.session_state.get("to_location", "정보없음")],     # 도착지 추가
+    ["견적일", estimate_date],                          # 견적일 추가 (이미 만들어져 있음)
+]
+
+# 1. 표 만들기
+table = Table(data, colWidths=[100, 400])
+
+# 2. 표 꾸미기 (스타일 적용)
+table.setStyle(
+    TableStyle(
+        [
+            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey), # 첫 번째 세로줄 배경색
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),       # 표 테두리 선
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),               # 글자 왼쪽 정렬
+            ("FONTNAME", (0, 0), (-1,-1), "NanumGothic"),      # 표 전체 글꼴 (한글 때문에 중요!)
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),            # 글자 아래쪽 여백
+            ("TOPPADDING", (0, 0), (-1, -1), 6),               # 글자 위쪽 여백
+        ]
+    )
+)
+
+# 3. 다 만들어진 표를 PDF 문서 목록에 추가 (★ 중요: 한 번만 추가!)
+elements.append(table)
+elements.append(Spacer(1, 12)) # 표 아래에 약간의 공간 추가
 
 # 특이 사항
 if st.session_state.get("special_notes", ""):
