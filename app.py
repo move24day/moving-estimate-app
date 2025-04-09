@@ -636,30 +636,39 @@ with tab3:
             elements.append(work_table)
             elements.append(Spacer(1, 12))
 
-            # 4. 비용 상세 내역 표 추가 (★ 새로 추가된 부분)
-            elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
-            elements.append(Spacer(1, 5))
-            # 비용 데이터 준비 (Tab 3에서 계산된 cost_items 사용)
-            cost_data = [["항목", "금액"]] # 헤더 추가
-            cost_data.extend(cost_items) # 계산된 비용 항목 추가
-            cost_data.append(["총 견적 비용", f"{total_cost:,}원"]) # 총 비용 추가
-            # 비용 상세 내역 테이블 생성 및 스타일 적용
-            cost_table = Table(cost_data, colWidths=[300, 150]) # 너비 조정
-            cost_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),      # 첫 행(헤더) 배경색
-                ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),      # 마지막 행(총계) 배경색
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (0, 0), (-1, -1), "LEFT"),
-                ('ALIGN', (1, 1), (1, -1), "RIGHT"),                  # 금액 오른쪽 정렬 (헤더 제외)
-                ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
-                ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"),
-                ('FONTNAME', (0, 0), (-1, 0), "NanumGothic" if font_registered else "Helvetica-Bold"), # 헤더 폰트 (Bold는 선택)
-                ('FONTNAME', (0, -1), (-1,-1), "NanumGothic" if font_registered else "Helvetica-Bold"),# 총계 폰트 (Bold는 선택)
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ]))
-            elements.append(cost_table)
-            elements.append(Spacer(1, 12))
+    # 4. 비용 상세 내역 표 추가 (★ 새로 추가된 부분)
+    elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
+    elements.append(Spacer(1, 5))
+    # 비용 데이터 준비 (Tab 3에서 계산된 cost_items 사용)
+    cost_data = [["항목", "금액"]] # 헤더 추가
+
+    # 수정된 부분: 항목과 금액을 분리
+    for item in cost_items:
+        if item:
+            if item[0] == "이사 집중일 부담금":
+                cost_value = item[1].split()[-1]  # 금액 부분 추출
+                cost_data.append([item[0], cost_value])
+            else:
+                cost_data.append([item[0], item[1]])
+
+    cost_data.append(["총 견적 비용", f"{total_cost:,}원"]) # 총 비용 추가
+    # 비용 상세 내역 테이블 생성 및 스타일 적용
+    cost_table = Table(cost_data, colWidths=[300, 150]) # 너비 조정
+    cost_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),      # 첫 행(헤더) 배경색
+        ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),      # 마지막 행(총계) 배경색
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), "LEFT"),
+        ('ALIGN', (1, 1), (1, -1), "RIGHT"),                  # 금액 오른쪽 정렬 (헤더 제외)
+        ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
+        ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"),
+        ('FONTNAME', (0, 0), (-1, 0), "NanumGothic" if font_registered else "Helvetica-Bold"), # 헤더 폰트 (Bold는 선택)
+        ('FONTNAME', (0, -1), (-1,-1), "NanumGothic" if font_registered else "Helvetica-Bold"),# 총계 폰트 (Bold는 선택)
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(cost_table)
+    elements.append(Spacer(1, 12))
 
             # 5. 특이 사항 추가
             special_notes_text = st.session_state.get("special_notes", "")
