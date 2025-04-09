@@ -510,14 +510,51 @@ with tab3:
         st.subheader("📝 특이 사항")
         st.info(st.session_state.get('special_notes', ''))
     
-    # PDF 견적서 생성 기능
-    st.subheader("📄 견적서 다운로드")
-    if st.button("PDF 견적서 생성"):
-        # PDF 생성 로직
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
-        styles = getSampleStyleSheet()
-        elements = []
+# PDF 견적서 생성 기능
+st.subheader("📄 견적서 다운로드")
+if st.button("PDF 견적서 생성"):
+    # PDF 생성 로직
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    
+    # 여기에 한글 폰트 관련 코드를 추가
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    
+    # 한글 폰트 등록 (나눔고딕 등 한글 폰트 파일이 필요)
+    pdfmetrics.registerFont(TTFont('NanumGothic', 'NanumGothic.ttf'))
+    
+    # 스타일에 폰트 적용
+    styles = getSampleStyleSheet()
+    styles['Title'].fontName = 'NanumGothic'
+    styles['Normal'].fontName = 'NanumGothic'
+    styles['Heading1'].fontName = 'NanumGothic'
+    styles['Heading2'].fontName = 'NanumGothic'
+    
+    # 이후 기존 PDF 생성 코드 계속...
+    elements = []# PDF 견적서 생성 기능
+st.subheader("📄 견적서 다운로드")
+if st.button("PDF 견적서 생성"):
+    # PDF 생성 로직
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    
+    # 여기에 한글 폰트 관련 코드를 추가
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    
+    # 한글 폰트 등록 (나눔고딕 등 한글 폰트 파일이 필요)
+    pdfmetrics.registerFont(TTFont('NanumGothic', 'NanumGothic.ttf'))
+    
+    # 스타일에 폰트 적용
+    styles = getSampleStyleSheet()
+    styles['Title'].fontName = 'NanumGothic'
+    styles['Normal'].fontName = 'NanumGothic'
+    styles['Heading1'].fontName = 'NanumGothic'
+    styles['Heading2'].fontName = 'NanumGothic'
+    
+    # 이후 기존 PDF 생성 코드 계속...
+    elements = []
         
         # 제목
         title_style = styles["Title"]
