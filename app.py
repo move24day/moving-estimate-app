@@ -543,7 +543,7 @@ with tab3:
 
             # 한글 폰트 경로 설정 (환경에 맞게 수정 필요)
             # 예: 로컬 / Streamlit Cloud 등
-            font_path = "NanumGothic.ttf" # 기본 경로 (파일이 같은 폴더에 있다고 가정)
+            font_path = "NanumGothic.ttf"  # 기본 경로 (파일이 같은 폴더에 있다고 가정)
             # Streamlit Cloud 등에서는 절대 경로 또는 상대 경로 확인 필요
             if "RUNNING_ON_STREAMLIT_CLOUD" in os.environ:
                 font_path = "/app/NanumGothic.ttf"  # Streamlit Cloud 경로 예시
@@ -572,11 +572,11 @@ with tab3:
 
             # 1. 제목 추가
             elements.append(Paragraph("이사 견적서", styles["Title"]))
-            elements.append(Spacer(1, 20)) # 제목 아래 간격 증가
+            elements.append(Spacer(1, 20))  # 제목 아래 간격 증가
 
             # 2. 기본 정보 표 추가
             elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
-            elements.append(Spacer(1, 5)) # 섹션 제목 아래 작은 간격
+            elements.append(Spacer(1, 5))  # 섹션 제목 아래 작은 간격
 
             # 고객명 처리: 고객명 없을 시 전화번호 사용
             customer_name = st.session_state.get("customer_name") or st.session_state.get("customer_phone") or "미정"
@@ -585,24 +585,24 @@ with tab3:
             basic_data = [
                 ["고객명", customer_name],
                 ["전화번호", st.session_state.get("customer_phone", "미정")],
-                ["이사일", str(st.session_state.get("moving_date", ""))], # 날짜는 문자열로
+                ["이사일", str(st.session_state.get("moving_date", ""))],  # 날짜는 문자열로
                 ["출발지", st.session_state.get("from_location", "미정")],
                 ["도착지", st.session_state.get("to_location", "미정")],
-                ["견적일", estimate_date], # Tab 1에서 계산된 값 사용
+                ["견적일", estimate_date],  # Tab 1에서 계산된 값 사용
             ]
             # 기본 정보 테이블 생성 및 스타일 적용
-            basic_table = Table(basic_data, colWidths=[100, 350]) # 너비 조정
+            basic_table = Table(basic_data, colWidths=[100, 350])  # 너비 조정
             basic_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
                 ('ALIGN', (0, 0), (-1, -1), "LEFT"),
-                ('VALIGN', (0, 0), (-1, -1), "MIDDLE"), # 수직 정렬
-                ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"), # 폰트 적용
+                ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),  # 수직 정렬
+                ('FONTNAME', (0, 0), (-1, -1), "NanumGothic" if font_registered else "Helvetica"),  # 폰트 적용
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
                 ('TOPPADDING', (0, 0), (-1, -1), 6),
             ]))
             elements.append(basic_table)
-            elements.append(Spacer(1, 12)) # 표 아래 간격
+            elements.append(Spacer(1, 12))  # 표 아래 간격
 
             # 3. 작업 정보 표 추가 (★ 새로 추가된 부분)
             elements.append(Paragraph("■ 작업 정보", styles["Heading2"]))
@@ -613,80 +613,73 @@ with tab3:
                 current_base_info = home_vehicle_prices.get(selected_vehicle, {"men": 0, "housewife": 0})
             else:
                 current_base_info = office_vehicle_prices.get(selected_vehicle, {"men": 0})
-                current_base_info["housewife"] = 0 # 사무실 이사 시 주부 인원 0명 보장
+                current_base_info["housewife"] = 0  # 사무실 이사 시 주부 인원 0명 보장
 
             work_data = [
                 ["선택 차량", selected_vehicle],
                 ["출발지", f"{st.session_state.get('from_floor', '미정')}층 ({st.session_state.get('from_method', '미정')})"],
                 ["도착지", f"{st.session_state.get('to_floor', '미정')}층 ({st.session_state.get('to_method', '미정')})"],
-                ["기본 투입 인원", f"남성 {current_base_info.get('men', 0)}명" + (f", 여성 {current_base_info.get('housewife', 0)}명" if current_base_info.get('housewife', 0) > 0 else "")],
+                ["기본 투입 인원",
+                 f"남성 {current_base_info.get('men', 0)}명" + (f", 여성 {current_base_info.get('housewife', 0)}명" if current_base_info.get('housewife', 0) > 0 else "")],
                 ["추가 투입 인원", f"남성 {additional_men}명, 여성 {additional_women}명"],
             ]
             # 작업 정보 테이블 생성 및 스타일 적용
-            work_table = Table(work_data, colWidths=[100, 350]) # 너비 조정
-            work_table.setStyle(TableStyle([ # 동일한 스타일 적용 (기본 정보와)
+            work_table = Table(work_data, colWidths=[100, 350])  # 너비 조정
+            work_table.setStyle(TableStyle([  # 동일한 스타일 적용 (기본 정보와)
                 ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
                 ('ALIGN', (0, 0), (-1, -1), "LEFT"),
                 ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
-                ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"),
+                ('FONTNAME', (0, 0), (-1, -1), "NanumGothic" if font_registered else "Helvetica"),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
                 ('TOPPADDING', (0, 0), (-1, -1), 6),
             ]))
             elements.append(work_table)
             elements.append(Spacer(1, 12))
 
-    # 4. 비용 상세 내역 표 추가 (★ 새로 추가된 부분)
-    elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
-    elements.append(Spacer(1, 5))
-    # 비용 데이터 준비 (Tab 3에서 계산된 cost_items 사용)
-    cost_data = [["항목", "금액"]] # 헤더 추가
-
-    # 수정된 부분: 항목과 금액을 분리
-    for item in cost_items:
-        if item:
-            if item[0] == "이사 집중일 부담금":
-                cost_value = item[1].split()[-1]  # 금액 부분 추출
-                cost_data.append([item[0], cost_value])
-            else:
-                cost_data.append([item[0], item[1]])
-
-    cost_data.append(["총 견적 비용", f"{total_cost:,}원"]) # 총 비용 추가
-    # 비용 상세 내역 테이블 생성 및 스타일 적용
-    cost_table = Table(cost_data, colWidths=[300, 150]) # 너비 조정
-    cost_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),      # 첫 행(헤더) 배경색
-        ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),      # 마지막 행(총계) 배경색
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('ALIGN', (0, 0), (-1, -1), "LEFT"),
-        ('ALIGN', (1, 1), (1, -1), "RIGHT"),                  # 금액 오른쪽 정렬 (헤더 제외)
-        ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
-        ('FONTNAME', (0, 0), (-1,-1), "NanumGothic" if font_registered else "Helvetica"),
-        ('FONTNAME', (0, 0), (-1, 0), "NanumGothic" if font_registered else "Helvetica-Bold"), # 헤더 폰트 (Bold는 선택)
-        ('FONTNAME', (0, -1), (-1,-1), "NanumGothic" if font_registered else "Helvetica-Bold"),# 총계 폰트 (Bold는 선택)
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-    ]))
-    elements.append(cost_table)
-    elements.append(Spacer(1, 12))
-
-        # 5. 특이 사항 추가
-        if st.session_state.get("special_notes"):
-            elements.append(Paragraph("■ 특이 사항", styles["Heading2"]))
+            # 4. 비용 상세 내역 표 추가 (★ 새로 추가된 부분)
+            elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
             elements.append(Spacer(1, 5))
-            elements.append(Paragraph(st.session_state.get("special_notes"), styles["Normal"]))
+            # 비용 데이터 준비 (Tab 3에서 계산된 cost_items 사용)
+            cost_data = [["항목", "금액"]]  # 헤더 추가
+            cost_data.extend(cost_items)  # 계산된 비용 항목 추가
+            cost_data.append(["총 견적 비용", f"{total_cost:,}원"])  # 총 비용 추가
+            # 비용 상세 내역 테이블 생성 및 스타일 적용
+            cost_table = Table(cost_data, colWidths=[300, 150])  # 너비 조정
+            cost_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),  # 첫 행(헤더) 배경색
+                ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),  # 마지막 행(총계) 배경색
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), "LEFT"),
+                ('ALIGN', (1, 1), (1, -1), "RIGHT"),  # 금액 오른쪽 정렬 (헤더 제외)
+                ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
+                ('FONTNAME', (0, 0), (-1, -1), "NanumGothic" if font_registered else "Helvetica"),
+                ('FONTNAME', (0, 0), (-1, 0), "NanumGothic" if font_registered else "Helvetica-Bold"),  # 헤더 폰트 (Bold는 선택)
+                ('FONTNAME', (0, -1), (-1, -1), "NanumGothic" if font_registered else "Helvetica-Bold"),  # 총계 폰트 (Bold는 선택)
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(cost_table)
             elements.append(Spacer(1, 12))
 
-        # PDF 빌드 (Try-Except 추가)
-        try:
-            doc.build(elements)
+            # 5. 특이 사항 추가
+            special_notes_text = st.session_state.get("special_notes", "")
+            if special_notes_text:
+                elements.append(Paragraph("■ 특이 사항", styles["Heading2"]))
+                elements.append(Spacer(1, 5))
+                elements.append(Paragraph(special_notes_text, styles["Normal"]))
+                elements.append(Spacer(1, 12))
 
-            # 다운로드 링크 생성
-            pdf_data = buffer.getvalue()
-            b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
-            file_name = f"이사견적서_{customer_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
-            href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
-            st.markdown(href, unsafe_allow_html=True)
+            # PDF 빌드 (Try-Except 추가)
+            try:
+                doc.build(elements)
 
-        except Exception as e:
-            st.error(f"PDF 문서 빌드 중 오류가 발생했습니다: {e}")
+                # 다운로드 링크 생성
+                pdf_data = buffer.getvalue()
+                b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
+                file_name = f"이사견적서_{customer_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+                href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 견적서 다운로드</a>'
+                st.markdown(href, unsafe_allow_html=True)
+
+            except Exception as e:
+                st.error(f"PDF 문서 빌드 중 오류가 발생했습니다: {e}")
