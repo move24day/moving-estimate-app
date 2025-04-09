@@ -478,7 +478,7 @@ with tab3:
         ladder_from_cost = ladder_to_cost = 0
         ladder_vehicle = selected_vehicle if selected_vehicle in ['5톤', '6톤', '7.5톤', '10톤'] else '5톤'
 
-       if uses_ladder_from and ladder_from_floor and ladder_from_floor in ladder_prices and ladder_vehicle in ladder_prices[ladder_from_floor]:
+        if uses_ladder_from and ladder_from_floor and ladder_from_floor in ladder_prices and ladder_vehicle in ladder_prices[ladder_from_floor]:
             ladder_from_cost = ladder_prices[ladder_from_floor][ladder_vehicle]
             total_cost += ladder_from_cost
         
