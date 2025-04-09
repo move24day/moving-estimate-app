@@ -138,6 +138,49 @@ def recommend_vehicle(total_volume, total_weight):
     
     return "20톤 이상 차량 필요", 0
 
+# 층수에 따른 사다리 세부 구간 매핑 함수
+def get_ladder_range(floor):
+    try:
+        floor_num = int(floor)
+        if floor_num < 2:
+            return None  # 1층 이하는 사다리 필요 없음
+        elif 2 <= floor_num <= 5:
+            return '2~5층'
+        elif 6 <= floor_num <= 7:
+            return '6~7층'
+        elif 8 <= floor_num <= 9:
+            return '8~9층'
+        elif 10 <= floor_num <= 11:
+            return '10~11층'
+        elif 12 <= floor_num <= 13:
+            return '12~13층'
+        elif floor_num == 14:
+            return '14층'
+        elif floor_num == 15:
+            return '15층'
+        elif floor_num == 16:
+            return '16층'
+        elif floor_num == 17:
+            return '17층'
+        elif floor_num == 18:
+            return '18층'
+        elif floor_num == 19:
+            return '19층'
+        elif floor_num == 20:
+            return '20층'
+        elif floor_num == 21:
+            return '21층'
+        elif floor_num == 22:
+            return '22층'
+        elif floor_num == 23:
+            return '23층'
+        elif floor_num >= 24:
+            return '24층'
+    except ValueError:
+        return None  # 숫자로 변환할 수 없는 경우
+    
+    return None
+
 # 세션 상태 초기화
 if 'selected_items' not in st.session_state:
     st.session_state.selected_items = {}
@@ -270,13 +313,34 @@ with tab3:
     else:
         selected_vehicle = st.selectbox('🚚 차량 톤수 선택:', sorted(list(home_vehicle_prices.keys())))
     
-    # 사다리 옵션
-    uses_ladder = '사다리차' in [from_method, to_method]
-    ladder_floor = '사용안함'
+    # 출발지와 도착지에서 사다리차 사용 확인
+    uses_ladder_from = False
+    uses_ladder_to = False
+    ladder_from_floor = None
+    ladder_to_floor = None
     
-    if uses_ladder:
-        ladder_floor = st.selectbox('사다리 사용 층수 선택:', list(ladder_prices.keys()))
-        st.info('📊 사다리 비용은 차량 톤수와 층수에 따라 자동 계산됩니다.')
+    if 'from_method' in st.session_state and st.session_state.from_method == '사다리차' and 'from_floor' in st.session_state:
+        uses_ladder_from = True
+        ladder_from_floor = get_ladder_range(st.session_state.from_floor)
+    
+    if 'to_method' in st.session_state and st.session_state.to_method == '사다리차' and 'to_floor' in st.session_state:
+        uses_ladder_to = True
+        ladder_to_floor = get_ladder_range(st.session_state.to_floor)
+    
+    # 사다리 정보 표시
+    if uses_ladder_from or uses_ladder_to:
+        st.subheader('🪜 사다리차 사용 정보')
+        if uses_ladder_from:
+            if ladder_from_floor:
+                st.info(f'출발지 사다리차 사용: {ladder_from_floor}')
+            else:
+                st.warning('출발지 층수가 유효하지 않거나 사다리차가 필요하지 않습니다.')
+        
+        if uses_ladder_to:
+            if ladder_to_floor:
+                st.info(f'도착지 사다리차 사용: {ladder_to_floor}')
+            else:
+                st.warning('도착지 층수가 유효하지 않거나 사다리차가 필요하지 않습니다.')
     
     # 스카이 옵션
     sky_hours = 2
@@ -341,18 +405,29 @@ with tab3:
         base_cost = base_info['price']
         total_cost = base_cost
         
-        # 사다리 비용 계산
-        ladder_cost = 0
-        if uses_ladder and ladder_floor != '사용안함':
-            # 5톤, 6톤, 7.5톤, 10톤 차량은 표에서 직접 가격 가져오기
+        # 사다리 비용 계산 (출발지와 도착지 각각 계산)
+        ladder_from_cost = 0
+        ladder_to_cost = 0
+        
+        # 출발지 사다리 비용 계산
+        if uses_ladder_from and ladder_from_floor:
             if selected_vehicle in ['5톤', '6톤', '7.5톤', '10톤']:
-                ladder_cost = ladder_prices[ladder_floor][selected_vehicle]
-            # 작은 차량은 5톤 가격에서 할인된 가격 적용
+                ladder_from_cost = ladder_prices[ladder_from_floor][selected_vehicle]
             else:
                 discount_factor = small_vehicle_ladder_discount.get(selected_vehicle, 0.8)
-                ladder_cost = int(ladder_prices[ladder_floor]['5톤'] * discount_factor)
+                ladder_from_cost = int(ladder_prices[ladder_from_floor]['5톤'] * discount_factor)
             
-            total_cost += ladder_cost
+            total_cost += ladder_from_cost
+        
+        # 도착지 사다리 비용 계산
+        if uses_ladder_to and ladder_to_floor:
+            if selected_vehicle in ['5톤', '6톤', '7.5톤', '10톤']:
+                ladder_to_cost = ladder_prices[ladder_to_floor][selected_vehicle]
+            else:
+                discount_factor = small_vehicle_ladder_discount.get(selected_vehicle, 0.8)
+                ladder_to_cost = int(ladder_prices[ladder_to_floor]['5톤'] * discount_factor)
+            
+            total_cost += ladder_to_cost
         
         # 스카이 비용 계산
         sky_cost = 0
@@ -388,23 +463,28 @@ with tab3:
         st.write("### 💵 비용 세부 내역:")
         st.write(f"- 기본 이사 비용: {base_cost:,}원")
         
-        if uses_ladder and ladder_floor != '사용안함':
-            st.write(f"- 사다리 비용 ({ladder_floor}, {selected_vehicle}): {ladder_cost:,}원")
+        # 출발지 사다리 비용 표시
+        if uses_ladder_from and ladder_from_floor and ladder_from_cost > 0:
+            st.write(f"- 출발지 사다리 비용 ({ladder_from_floor}, {selected_vehicle}): {ladder_from_cost:,}원")
         
-        if '스카이' in [from_method, to_method]:
-            st.write(f"- 스카이 사용 비용 ({sky_hours}시간): {sky_cost:,}원")
+        # 도착지 사다리 비용 표시
+        if uses_ladder_to and ladder_to_floor and ladder_to_cost > 0:
+            st.write(f"- 도착지 사다리 비용 ({ladder_to_floor}, {selected_vehicle}): {ladder_to_cost:,}원")
         
-        if additional_people > 0:
-            st.write(f"- 추가 인원 비용 (남성 {additional_men}명, 여성 {additional_women}명): {additional_people_cost:,}원")
-        
-        if has_waste and waste_tons > 0:
-            st.write(f"- 폐기물 처리 비용 ({waste_tons}톤): {waste_cost:,}원")
-        
-        if special_days_cost > 0:
-            special_days_text = ", ".join([d for d in selected_dates if d != '평일(일반)'])
-            st.write(f"- 특별 날짜 추가 비용 ({special_days_text}): {special_days_cost:,}원")
-        
-        st.write(f"### 총 비용: {total_cost:,}원 💸")
+      if '스카이' in [from_method, to_method]:
+    st.write(f"- 스카이 사용 비용 ({sky_hours}시간): {sky_cost:,}원")
+
+if additional_people > 0:
+    st.write(f"- 추가 인원 비용 (남성 {additional_men}명, 여성 {additional_women}명): {additional_people_cost:,}원")
+
+if has_waste and waste_tons > 0:
+    st.write(f"- 폐기물 처리 비용 ({waste_tons}톤): {waste_cost:,}원")
+
+if special_days_cost > 0:
+    special_days_text = ", ".join([d for d in selected_dates if d != '평일(일반)'])
+    st.write(f"- 특별 날짜 추가 비용 ({special_days_text}): {special_days_cost:,}원")
+
+st.write(f"### 총 비용: {total_cost:,}원 💸")
         
         # 인원 정보 표시
         st.write("### 👨‍👩‍👧 투입 인원:")
@@ -424,5 +504,3 @@ with tab3:
         st.write(f"- 총 부피: {total_volume:.2f} m³")
         st.write(f"- 총 무게: {total_weight:.2f} kg")
         st.write(f"- 추천 차량: {recommended_vehicle} (여유 공간: {remaining_space:.2f}%)")
-        
-       
