@@ -387,121 +387,92 @@ with tab3:
         selected_dates.append('평일(일반)')
     
     # 비용 계산
-    if st.button('💰 이사 비용 계산하기'):
-        # 기본 비용 계산
-        if move_type == '가정 이사 🏠':
-            if selected_vehicle in home_vehicle_prices:
-                base_info = home_vehicle_prices[selected_vehicle]
-            else:
-                st.error(f"선택한 차량 크기 {selected_vehicle}에 대한 요금 정보가 없습니다.")
-                base_info = {'price': 0, 'men': 0, 'housewife': 0}
-        else:  # 사무실 이사
-            if selected_vehicle in office_vehicle_prices:
-                base_info = office_vehicle_prices[selected_vehicle]
-            else:
-                st.error(f"선택한 차량 크기 {selected_vehicle}에 대한 요금 정보가 없습니다.")
-                base_info = {'price': 0, 'men': 0}
-        
-        base_cost = base_info['price']
-        total_cost = base_cost
-        
-        # 사다리 비용 계산 (출발지와 도착지 각각 계산)
-        ladder_from_cost = 0
-        ladder_to_cost = 0
-        
-        # 출발지 사다리 비용 계산
-        if uses_ladder_from and ladder_from_floor:
-            if selected_vehicle in ['5톤', '6톤', '7.5톤', '10톤']:
-                ladder_from_cost = ladder_prices[ladder_from_floor][selected_vehicle]
-            else:
-                discount_factor = small_vehicle_ladder_discount.get(selected_vehicle, 0.8)
-                ladder_from_cost = int(ladder_prices[ladder_from_floor]['5톤'] * discount_factor)
-            
-            total_cost += ladder_from_cost
-        
-        # 도착지 사다리 비용 계산
-        if uses_ladder_to and ladder_to_floor:
-            if selected_vehicle in ['5톤', '6톤', '7.5톤', '10톤']:
-                ladder_to_cost = ladder_prices[ladder_to_floor][selected_vehicle]
-            else:
-                discount_factor = small_vehicle_ladder_discount.get(selected_vehicle, 0.8)
-                ladder_to_cost = int(ladder_prices[ladder_to_floor]['5톤'] * discount_factor)
-            
-            total_cost += ladder_to_cost
-        
-        # 스카이 비용 계산
-        sky_cost = 0
-        if '스카이' in [from_method, to_method]:
-            sky_cost = sky_base_price + (sky_hours - 2) * sky_extra_hour_price
-            total_cost += sky_cost
-        
-        # 추가 인원 비용 계산
-        additional_people = additional_men + additional_women
-        additional_people_cost = 0
-        if additional_people > 0:
-            additional_people_cost = additional_person_cost * additional_people
-            total_cost += additional_people_cost
-        
-        # 폐기물 처리 비용 계산
-        waste_cost = 0
-        if has_waste and waste_tons > 0:
-            waste_cost = int(waste_disposal_cost * waste_tons)
-            total_cost += waste_cost
-        
-        # 특별 날짜 비용 계산 (중복 적용)
-        special_days_cost = 0
-        for date_type in selected_dates:
-            if date_type != '평일(일반)':  # 평일은 추가 비용 없음
-                special_days_cost += special_day_prices[date_type]
-        
-        total_cost += special_days_cost
-        
-        # 결과 출력
-        st.subheader('📌 총 예상 이사 비용 및 인원:')
-        
-        # 비용 세부 내역 표시
-        st.write("### 💵 비용 세부 내역:")
-        st.write(f"- 기본 이사 비용: {base_cost:,}원")
-        
-        # 출발지 사다리 비용 표시
-        if uses_ladder_from and ladder_from_floor and ladder_from_cost > 0:
-            st.write(f"- 출발지 사다리 비용 ({ladder_from_floor}, {selected_vehicle}): {ladder_from_cost:,}원")
-        
-        # 도착지 사다리 비용 표시
-        if uses_ladder_to and ladder_to_floor and ladder_to_cost > 0:
-            st.write(f"- 도착지 사다리 비용 ({ladder_to_floor}, {selected_vehicle}): {ladder_to_cost:,}원")
-        
-if '스카이' in [from_method, to_method]:
-    st.write(f"- 스카이 사용 비용 ({sky_hours}시간): {sky_cost:,}원")
+if st.button('💰 이사 비용 계산하기'):
+    # 기본 비용 계산
+    if move_type == '가정 이사 🏠':
+        base_info = home_vehicle_prices.get(selected_vehicle, {'price': 0, 'men': 0, 'housewife': 0})
+    else:
+        base_info = office_vehicle_prices.get(selected_vehicle, {'price': 0, 'men': 0})
 
-if additional_people > 0:
-    st.write(f"- 추가 인원 비용 (남성 {additional_men}명, 여성 {additional_women}명): {additional_people_cost:,}원")
+    base_cost = base_info['price']
+    total_cost = base_cost
 
-if has_waste and waste_tons > 0:
-    st.write(f"- 폐기물 처리 비용 ({waste_tons}톤): {waste_cost:,}원")
+    # 사다리 비용 계산 (출발지 및 도착지)
+    ladder_from_cost = ladder_to_cost = 0
 
-if special_days_cost > 0:
-    special_days_text = ", ".join([d for d in selected_dates if d != '평일(일반)'])
-    st.write(f"- 특별 날짜 추가 비용 ({special_days_text}): {special_days_cost:,}원")
+    if uses_ladder_from and ladder_from_floor:
+        ladder_price_table = ladder_prices[ladder_from_floor]
+        ladder_from_cost = ladder_price_table.get(selected_vehicle, 
+            int(ladder_price_table['5톤'] * small_vehicle_ladder_discount.get(selected_vehicle, 0.8)))
+        total_cost += ladder_from_cost
 
-st.write(f"### 총 비용: {total_cost:,}원 💸")
-        
-# 인원 정보 표시
-st.write("### 👨‍👩‍👧 투입 인원:")
-if move_type == '가정 이사 🏠':
+    if uses_ladder_to and ladder_to_floor:
+        ladder_price_table = ladder_prices[ladder_to_floor]
+        ladder_to_cost = ladder_price_table.get(selected_vehicle, 
+            int(ladder_price_table['5톤'] * small_vehicle_ladder_discount.get(selected_vehicle, 0.8)))
+        total_cost += ladder_to_cost
+
+    # 스카이 비용 계산
+    sky_cost = 0
+    if '스카이' in [from_method, to_method]:
+        sky_cost = sky_base_price + (sky_hours - 2) * sky_extra_hour_price
+        total_cost += sky_cost
+
+    # 추가 인원 비용 계산
+    additional_people = additional_men + additional_women
+    additional_people_cost = additional_person_cost * additional_people
+    total_cost += additional_people_cost
+
+    # 폐기물 처리 비용 계산
+    waste_cost = int(waste_disposal_cost * waste_tons) if has_waste else 0
+    total_cost += waste_cost
+
+    # 특별 날짜 비용 계산
+    special_days_cost = sum(special_day_prices[date_type] for date_type in selected_dates if date_type != '평일(일반)')
+    total_cost += special_days_cost
+
+    # 인원 합산
     total_men = base_info['men'] + additional_men
-    total_women = base_info.get('housewife', 0) + additional_women
+    total_women = base_info.get('housewife', 0) + additional_women if move_type == '가정 이사 🏠' else additional_women
+
+    # 결과 출력
+    st.subheader('📌 총 예상 이사 비용 및 인원')
+
+    # 비용 세부 내역 표시
+    st.write("### 💵 비용 세부 내역")
+    st.write(f"- 기본 이사 비용: {base_cost:,}원")
+
+    if ladder_from_cost > 0:
+        st.write(f"- 출발지 사다리 비용 ({ladder_from_floor}, {selected_vehicle}): {ladder_from_cost:,}원")
+
+    if ladder_to_cost > 0:
+        st.write(f"- 도착지 사다리 비용 ({ladder_to_floor}, {selected_vehicle}): {ladder_to_cost:,}원")
+
+    if sky_cost > 0:
+        st.write(f"- 스카이 사용 비용 ({sky_hours}시간): {sky_cost:,}원")
+
+    if additional_people_cost > 0:
+        st.write(f"- 추가 인원 비용 (남성 {additional_men}명, 여성 {additional_women}명): {additional_people_cost:,}원")
+
+    if waste_cost > 0:
+        st.write(f"- 폐기물 처리 비용 ({waste_tons}톤): {waste_cost:,}원")
+
+    if special_days_cost > 0:
+        special_days_text = ", ".join([d for d in selected_dates if d != '평일(일반)'])
+        st.write(f"- 특별 날짜 추가 비용 ({special_days_text}): {special_days_cost:,}원")
+
+    st.write(f"### 💸 총 비용: {total_cost:,}원")
+
+    # 인원 정보 표시
+    st.write("### 👨‍👩‍👧 투입 인원")
     st.write(f"- 남성 작업자 👨: {total_men}명 (기본 {base_info['men']}명 + 추가 {additional_men}명)")
-    st.write(f"- 여성 작업자 👩: {total_women}명 (기본 {base_info.get('housewife', 0)}명 + 추가 {additional_women}명)")
-else:
-    total_men = base_info['men'] + additional_men
-    st.write(f"- 남성 작업자 👨: {total_men}명 (기본 {base_info['men']}명 + 추가 {additional_men}명)")
-    if additional_women > 0:
+    if move_type == '가정 이사 🏠':
+        st.write(f"- 여성 작업자 👩: {total_women}명 (기본 {base_info.get('housewife', 0)}명 + 추가 {additional_women}명)")
+    elif additional_women > 0:
         st.write(f"- 여성 작업자 👩: {additional_women}명")
 
-# 품목 및 부피 정보 요약
-st.write("### 📊 물품 정보 요약:")
-st.write(f"- 총 부피: {total_volume:.2f} m³")
-st.write(f"- 총 무게: {total_weight:.2f} kg")
-st.write(f"- 추천 차량: {recommended_vehicle} (여유 공간: {remaining_space:.2f}%)")
-
+    # 품목 및 부피 정보 요약
+    st.write("### 📊 물품 정보 요약")
+    st.write(f"- 총 부피: {total_volume:.2f} m³")
+    st.write(f"- 총 무게: {total_weight:.2f} kg")
+    st.write(f"- 추천 차량: {recommended_vehicle} (여유 공간: {remaining_space:.2f}%)")
