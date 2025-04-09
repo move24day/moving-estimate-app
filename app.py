@@ -327,21 +327,19 @@ with tab2:
 st.subheader("📦 선택한 품목 정보")
 
 if selected_items:
-    item_data = []
-    for item, (qty, unit, vol, weight) in selected_items.items():
-        item_data.append([item, f"{qty} {unit}"])
-    df = pd.DataFrame(item_data, columns=["품목", "수량"])
-    st.dataframe(df, use_container_width=True)
+    # 3열로 표시하기 위한 컬럼 생성
+    cols = st.columns(3)
+    item_list = list(selected_items.items())
     
-    # 추가 박스 정보
-    if any(additional_boxes.values()):
-        st.subheader("📦 추가 박스 정보")
-        box_data = []
-        for box, count in additional_boxes.items():
-            if count > 0:
-                box_data.append([box, count])
-        df_box = pd.DataFrame(box_data, columns=["박스 종류", "수량"])
-        st.dataframe(df_box, use_container_width=True)
+    # 각 열에 표시할 아이템 수 계산
+    items_per_column = len(item_list) // 3 + (1 if len(item_list) % 3 > 0 else 0)
+    
+    # 3열로 아이템 표시
+    for i, (item, (qty, unit, vol, weight)) in enumerate(item_list):
+        col_index = i // items_per_column
+        if col_index < 3:  # 3열 이내인 경우만 표시
+            with cols[col_index]:
+                st.write(f"**{item}**: {qty} {unit}")
     
     # 실시간 차량 추천 정보 표시
     st.subheader("🚚 추천 차량 정보")
