@@ -221,12 +221,66 @@ with tab1:
 # 탭 2: 물품 선택
 with tab2:
     st.header("📋 품목 선택")
-    
+
     selected_items = {}
     additional_boxes = {"중대박스": 0, "옷박스": 0, "중박스": 0}
-    
-    for section, item_list in items.items():
-        with st.expander(f"{section} 품목 선택"):
+
+    # 이사 유형에 따른 품목 분류 정의
+    home_items = {
+        '가정품목': {
+            '장롱': items['방']['장롱'],
+            '더블침대': items['방']['더블침대'],
+            '서랍장': items['방']['서랍장(5단)'],
+            '화장대': items['방']['화장대'],
+            'TV(75인치)': items['거실']['TV(75인치)'],
+            '책상&의자': items['방']['책상&의자'],
+            '책장': items['방']['책장'],
+            '옷행거': items['방']['옷행거'],
+            '소파(3인용)': items['거실']['소파(3인용)'],
+            '장식장': items['거실']['장식장'],
+            '에어컨': items['거실']['에어컨'],
+            '4도어 냉장고': items['주방']['4도어 냉장고'],
+            '김치냉장고(스탠드형)': items['주방']['김치냉장고(스탠드형)'],
+            '식탁(4인)': items['주방']['식탁(4인)'],
+            '주방용 선반(수납장)': items['주방']['주방용 선반(수납장)'],
+            '세탁기 및 건조기': items['기타']['세탁기 및 건조기']
+        },
+        '기타품목': {
+            '피아노(일반)': items['거실']['피아노(일반)'],
+            '피아노(디지털)': items['거실']['피아노(디지털)'],
+            '안마기': items['거실']['안마기'],
+            '스타일러스': items['기타']['스타일러스'],
+            '신발장': items['기타']['신발장'],
+            '화분': items['기타']['화분'],
+            '여행가방 및 캐리어': items['기타']['여행가방 및 캐리어']
+        }
+    }
+
+    office_items = {
+        '사무실품목': {
+            '중역책상': items['방']['중역책상'],
+            '책상&의자': items['방']['책상&의자'],
+            '서랍장(5단)': items['방']['서랍장(5단)'],
+            '4도어 냉장고': items['주방']['4도어 냉장고'],
+            'TV(75인치)': items['거실']['TV(75인치)'],
+            '장식장': items['거실']['장식장'],
+            '에어컨': items['거실']['에어컨'],
+            '오디오 및 스피커': items['거실']['오디오 및 스피커']
+        },
+        '기타품목': {
+            '안마기': items['거실']['안마기'],
+            '공기청정기': items['거실']['공기청정기'],
+            '화분': items['기타']['화분'],
+            '스타일러스': items['기타']['스타일러스'],
+            '신발장': items['기타']['신발장']
+        }
+    }
+
+    # 선택된 이사 유형에 따라 품목 출력
+    item_category = home_items if move_type == '가정 이사 🏠' else office_items
+
+    for section, item_list in item_category.items():
+        with st.expander(f"{section} 선택"):
             cols = st.columns(3)
             items_list = list(item_list.items())
             third_len = len(items_list) // 3 + (len(items_list) % 3 > 0)
@@ -236,42 +290,45 @@ with tab2:
                     qty = st.number_input(f"{item}", min_value=0, step=1, key=f"{section}_{item}")
                     if qty > 0:
                         selected_items[item] = (qty, unit, volume, weight)
-                        if item == "장롱":
-                            additional_boxes["중대박스"] += qty * 5
-                        if item == "옷장":
-                            additional_boxes["옷박스"] += qty * 3
-                        if item == "서랍장(3단)":
-                            additional_boxes["중박스"] += qty * 3
-                        if item == "서랍장(5단)":
-                            additional_boxes["중박스"] += qty * 5
-    
-    # 세션 상태에 저장
+
+                        # 박스 자동 추가 조건 (가정 이사만 적용)
+                        if move_type == '가정 이사 🏠':
+                            if item == "장롱":
+                                additional_boxes["중대박스"] += qty * 5
+                            if item == "옷장":
+                                additional_boxes["옷박스"] += qty * 3
+                            if item == "서랍장":
+                                additional_boxes["중박스"] += qty * 5
+
+    # 세션 상태 저장
     st.session_state.selected_items = selected_items
     st.session_state.additional_boxes = additional_boxes
 
     # 박스 부피 계산
     box_volumes = {"중대박스": 0.1875, "옷박스": 0.219, "중박스": 0.1}
-    
+
     # 총 부피와 무게 계산
     total_volume = sum(qty * vol for item, (qty, unit, vol, weight) in selected_items.items())
     total_volume += sum(box_volumes[box] * count for box, count in additional_boxes.items())
-    
+
     total_weight = sum(qty * weight for item, (qty, unit, vol, weight) in selected_items.items())
-    
+
     # 차량 추천 및 여유 공간 계산
     recommended_vehicle, remaining_space = recommend_vehicle(total_volume, total_weight)
-    
-    # 선택한 품목과 부피 정보 표시
+
+    # 선택한 품목 정보 출력
     st.subheader("📦 선택한 품목 정보")
-    
+
     if selected_items:
         item_data = []
         for item, (qty, unit, vol, weight) in selected_items.items():
-            item_data.append([item, qty, unit, f"{vol:.2f} m³", f"{weight:.1f} kg", f"{qty * vol:.2f} m³", f"{qty * weight:.1f} kg"])
-        
+            item_data.append([
+                item, qty, unit, f"{vol:.2f} m³", f"{weight:.1f} kg",
+                f"{qty * vol:.2f} m³", f"{qty * weight:.1f} kg"
+            ])
         df = pd.DataFrame(item_data, columns=["품목", "수량", "단위", "단위 부피", "단위 무게", "총 부피", "총 무게"])
         st.dataframe(df, use_container_width=True)
-        
+
         # 추가 박스 정보
         if any(additional_boxes.values()):
             st.subheader("📦 추가 박스 정보")
@@ -280,12 +337,10 @@ with tab2:
                 if count > 0:
                     vol = box_volumes[box]
                     box_data.append([box, count, f"{vol:.3f} m³", f"{vol * count:.3f} m³"])
-            
             df_box = pd.DataFrame(box_data, columns=["박스 종류", "수량", "단위 부피", "총 부피"])
             st.dataframe(df_box, use_container_width=True)
     else:
-        st.info("아직 선택된 품목이 없습니다.")
-
+        st.info("선택된 품목이 없습니다.")
 # 탭 3: 견적 및 비용
 with tab3:
     st.header("💰 이사 비용 계산")
