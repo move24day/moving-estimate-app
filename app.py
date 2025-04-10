@@ -297,14 +297,15 @@ with tab2:
                         sum(box_volumes[b] * c for b, c in st.session_state.additional_boxes.items())
         total_weight = sum(q * w for i, (q, u, v, w) in st.session_state.selected_items.items())
 
-        cols_disp = st.columns(3)
-        item_list_disp = list(st.session_state.selected_items.items())
-        items_per_col_disp = (len(item_list_disp) + 2) // 3
-        for i, (item, (qty, unit, vol, weight)) in enumerate(item_list_disp):
-                        if col_idx_disp < 3:
-                with cols_disp[col_idx_disp]:
-                    #글자크기 20% 키워서 보여주기
-                    st.write(f"<span style='font-size: 1.2em;'>**{item}**: {qty} {unit}</span>", unsafe_allow_html=True)
+cols_disp = st.columns(3)
+item_list_disp = list(st.session_state.selected_items.items())
+items_per_col_disp = (len(item_list_disp) + 2) // 3
+for i, (item, (qty, unit, vol, weight)) in enumerate(item_list_disp):
+    col_idx_disp = i // items_per_col_disp
+    if col_idx_disp < 3:
+        with cols_disp[col_idx_disp]:
+            #글자크기 20% 키워서 보여주기
+            st.write(f"<span style='font-size: 1.2em;'>**{item}**: {qty} {unit}</span>", unsafe_allow_html=True)
 
     else:
         st.info("선택된 품목이 없습니다.")
