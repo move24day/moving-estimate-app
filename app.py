@@ -12,6 +12,7 @@ import os
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import re
+import math # ceil 사용을 위해 추가
 
 # --- 페이지 설정 ---
 st.set_page_config(page_title="이삿날 스마트견적", layout="wide")
@@ -20,7 +21,6 @@ st.set_page_config(page_title="이삿날 스마트견적", layout="wide")
 st.title("🚚 이삿날 스마트견적")
 
 # --- 데이터 정의 ---
-# (데이터 정의는 이전과 동일 - 생략)
 # 차량 비용
 office_vehicle_prices = {
     "1톤": {"price": 400000, "men": 2}, "2.5톤": {"price": 650000, "men": 2},
@@ -66,18 +66,44 @@ waste_disposal_cost = 300000
 sky_base_price = 300000
 sky_extra_hour_price = 50000
 storage_daily_fee = 7000 # 보관이사 5톤 기준 1일당 보관료
-# 장거리 추가비용
+
+# 장거리 추가비용 (수정됨)
 long_distance_prices = {
-    "100km": 100000, "200km": 200000, "200km 이상": 300000, "제주": 500000,
+    "선택 안 함": 0, # 기본 옵션 추가
+    "100km 이내": 200000,
+    "200km 이내": 500000,
+    "200km 초과": 700000, # 임의로 기존 30만원에서 상향 조정
+    "제주": 1000000, # 임의로 기존 50만원에서 상향 조정
+}
+long_distance_options = list(long_distance_prices.keys()) # 옵션 리스트 생성
+
+# 품목 데이터 (통합)
+items = {
+    "장롱": (1.05, 120.0), "싱글침대": (1.20, 60.0), "더블침대": (1.70, 70.0), "돌침대": (2.50, 150.0),
+    "옷장": (1.05, 160.0), "서랍장(3단)": (0.40, 30.0), "서랍장(5단)": (0.75, 40.0), "화장대": (0.32, 80.0),
+    "중역책상": (1.20, 80.0), "책장": (0.96, 56.0), "책상&의자": (0.25, 40.0), "옷행거": (0.35, 40.0),
+    "소파(1인용)": (0.40, 30.0), "소파(3인용)": (0.60, 50.0), "소파 테이블": (0.65, 35.0),
+    "TV(45인치)": (0.15, 15.0), "TV(75인치)": (0.30, 30.0), "장식장": (0.75, 40.0),
+    "오디오 및 스피커": (0.10, 20.0), "에어컨": (0.15, 30.0), "피아노(일반)": (1.50, 200.0),
+    "피아노(디지털)": (0.50, 50.0), "안마기": (0.90, 50.0), "공기청정기": (0.10, 8.0),
+    "양문형 냉장고": (1.00, 120.0), "4도어 냉장고": (1.20, 130.0), "김치냉장고(스탠드형)": (0.80, 90.0),
+    "김치냉장고(일반형)": (0.60, 60.0), "식탁(4인)": (0.40, 50.0), "식탁(6인)": (0.60, 70.0),
+    "가스레인지 및 인덕션": (0.10, 10.0), "주방용 선반(수납장)": (1.10, 80.0),
+    "세탁기 및 건조기": (0.50, 80.0), "신발장": (1.10, 60.0), "여행가방 및 캐리어": (0.15, 5.0),
+    "화분": (0.20, 10.0), "스타일러스": (0.50, 20.0),
 }
 
-# 품목 데이터
-items = {
-    "방": {"장롱": (1.05, 120.0), "싱글침대": (1.20, 60.0), "더블침대": (1.70, 70.0), "돌침대": (2.50, 150.0),"옷장": (1.05, 160.0), "서랍장(3단)": (0.40, 30.0), "서랍장(5단)": (0.75, 40.0), "화장대": (0.32, 80.0),"중역책상": (1.20, 80.0), "책장": (0.96, 56.0), "책상&의자": (0.25, 40.0), "옷행거": (0.35, 40.0),},
-    "거실": {"소파(1인용)": (0.40, 30.0), "소파(3인용)": (0.60, 50.0), "소파 테이블": (0.65, 35.0),"TV(45인치)": (0.15, 15.0), "TV(75인치)": (0.30, 30.0), "장식장": (0.75, 40.0),"오디오 및 스피커": (0.10, 20.0), "에어컨": (0.15, 30.0), "피아노(일반)": (1.50, 200.0),"피아노(디지털)": (0.50, 50.0), "안마기": (0.90, 50.0), "공기청정기": (0.10, 8.0),},
-    "주방": {"양문형 냉장고": (1.00, 120.0), "4도어 냉장고": (1.20, 130.0), "김치냉장고(스탠드형)": (0.80, 90.0),"김치냉장고(일반형)": (0.60, 60.0), "식탁(4인)": (0.40, 50.0), "식탁(6인)": (0.60, 70.0),"가스레인지 및 인덕션": (0.10, 10.0), "주방용 선반(수납장)": (1.10, 80.0),},
-    "기타": {"세탁기 및 건조기": (0.50, 80.0), "신발장": (1.10, 60.0), "여행가방 및 캐리어": (0.15, 5.0),"화분": (0.20, 10.0), "스타일러스": (0.50, 20.0),},
+# 이사 유형별 품목 정의
+home_items_def = {
+    "가정품목": ["장롱", "더블침대", "서랍장(5단)", "화장대", "TV(75인치)", "책상&의자", "책장", "옷행거", "소파(3인용)", "장식장", "에어컨", "4도어 냉장고", "김치냉장고(스탠드형)", "식탁(4인)", "주방용 선반(수납장)", "세탁기 및 건조기"],
+    "기타품목": ["피아노(일반)", "피아노(디지털)", "안마기", "스타일러스", "신발장", "화분", "여행가방 및 캐리어"]
 }
+office_items_def = {
+    "사무실품목": ["중역책상", "책상&의자", "서랍장(5단)", "4도어 냉장고", "TV(75인치)", "장식장", "에어컨", "오디오 및 스피커"],
+    "기타품목": ["안마기", "공기청정기", "화분", "스타일러스", "신발장"]
+}
+
+
 # 차량 용량
 vehicle_capacity = {"1톤": 5, "2.5톤": 12, "3.5톤": 18, "5톤": 25, "6톤": 30,"7.5톤": 40, "10톤": 50, "15톤": 70, "20톤": 90,}
 vehicle_weight_capacity = {"1톤": 1000, "2.5톤": 2500, "3.5톤": 3500, "5톤": 5000, "6톤": 6000,"7.5톤": 7500, "10톤": 10000, "15톤": 15000, "20톤": 20000,}
@@ -85,11 +111,10 @@ vehicle_weight_capacity = {"1톤": 1000, "2.5톤": 2500, "3.5톤": 3500, "5톤":
 box_volumes = {"중대박스": 0.1875, "옷박스": 0.219, "중박스": 0.1}
 
 # --- 함수 정의 ---
-# (함수 정의는 이전과 동일 - 생략)
 # 차량 추천
 def recommend_vehicle(total_volume, total_weight):
     loading_efficiency = 0.90
-    sorted_vehicles = sorted(vehicle_capacity.keys(), key=lambda x: vehicle_capacity.get(x, 0)) # Use .get for safety
+    sorted_vehicles = sorted(vehicle_capacity.keys(), key=lambda x: vehicle_capacity.get(x, 0))
     for name in sorted_vehicles:
         if name in vehicle_capacity and name in vehicle_weight_capacity:
             effective_capacity = vehicle_capacity[name] * loading_efficiency
@@ -109,7 +134,6 @@ def get_ladder_range(floor):
         if 8 <= f <= 9: return "8~9층"
         if 10 <= f <= 11: return "10~11층"
         if 12 <= f <= 13: return "12~13층"
-        # 14층부터는 해당 층수 키 사용 (ladder_prices 딕셔너리에 해당 키가 있어야 함)
         if f == 14: return "14층"
         if f == 15: return "15층"
         if f == 16: return "16층"
@@ -120,7 +144,7 @@ def get_ladder_range(floor):
         if f == 21: return "21층"
         if f == 22: return "22층"
         if f == 23: return "23층"
-        if f >= 24: return "24층" # 24층 이상은 '24층' 키 사용
+        if f >= 24: return "24층"
     except (ValueError, TypeError):
         return None
     return None
@@ -132,15 +156,14 @@ def extract_phone_number_part(phone_str):
     return cleaned[-4:] if len(cleaned) >= 4 else "번호없음"
 
 # --- 세션 상태 초기화 ---
-# active_tab_index 제거
-if "selected_items" not in st.session_state:
-    st.session_state.selected_items = {}
-if "additional_boxes" not in st.session_state:
-    st.session_state.additional_boxes = {"중대박스": 0, "옷박스": 0, "중박스": 0}
+# selected_items 와 additional_boxes 는 더 이상 사용하지 않음
+# 각 품목 수량은 고유 key를 가진 number_input 위젯의 session_state 로 관리
 if "base_move_type" not in st.session_state:
     st.session_state.base_move_type = "가정 이사 🏠"
 if "is_storage_move" not in st.session_state:
     st.session_state.is_storage_move = False
+if "apply_long_distance" not in st.session_state: # 장거리 적용 여부 추가
+    st.session_state.apply_long_distance = False
 
 # 기본 입력값 설정 (세션 상태 키 사용)
 default_values = {
@@ -148,30 +171,44 @@ default_values = {
     "moving_date": datetime.now().date(), "from_floor": "", "from_method": "사다리차 🪜",
     "to_floor": "", "to_method": "사다리차 🪜", "special_notes": "",
     "storage_duration": 1, "final_to_location": "", "final_to_floor": "", "final_to_method": "사다리차 🪜",
-    "long_distance": "100km", #추가
-    # 차량 선택 관련 상태 추가 (Tab 3에서 사용)
+    "long_distance": long_distance_options[0], # 기본값 "선택 안 함"
     "vehicle_select_radio": "자동 추천 차량 사용",
-    "manual_vehicle_select_value": None, # 수동 선택 값 저장
-    # 스카이 시간 상태 추가 (Tab 3에서 사용)
+    "manual_vehicle_select_value": None,
     "sky_hours_from": 2,
-    "sky_hours_final": 2
+    "sky_hours_final": 2,
+    "add_men": 0,
+    "add_women": 0,
+    "remove_women": 0,
+    "has_waste_check": False,
+    "waste_tons_input": 0.5,
+    "date_opt_0_widget": False, # 날짜 옵션 체크박스 상태
+    "date_opt_1_widget": False,
+    "date_opt_2_widget": False,
+    "date_opt_3_widget": False,
 }
 for key, value in default_values.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
+# 이사 유형별 품목 리스트 생성 및 초기화 (세션 상태에 없으면 0으로)
+item_category_to_init = home_items_def if st.session_state.base_move_type == "가정 이사 🏠" else office_items_def
+for section, item_list in item_category_to_init.items():
+    for item in item_list:
+        widget_key = f"qty_{st.session_state.base_move_type}_{section}_{item}"
+        if widget_key not in st.session_state:
+            st.session_state[widget_key] = 0
+
 # 작업 방법 옵션
 method_options = ["사다리차 🪜", "승강기 🛗", "계단 🚶", "스카이 🏗️"]
 
-# --- 탭 생성 (st.tabs 사용) ---
+# --- 탭 생성 ---
 tab1, tab2, tab3 = st.tabs(["고객 정보", "물품 선택", "견적 및 비용"])
 
 # --- 탭 1: 고객 정보 ---
 with tab1:
-    # active_tab_index 조건 제거 -> 항상 렌더링
     st.header("📝 고객 기본 정보")
 
-    # 이사 유형 선택 (기본: 가정/사무실)
+    # 이사 유형 선택
     base_move_type_options = ["가정 이사 🏠", "사무실 이사 🏢"]
     st.session_state.base_move_type = st.radio(
         "🏢 기본 이사 유형:", base_move_type_options,
@@ -179,16 +216,24 @@ with tab1:
         horizontal=True, key="base_move_type_radio_widget"
     )
 
-    # 보관이사 여부 체크박스
-    st.session_state.is_storage_move = st.checkbox("📦 보관이사 여부", key="is_storage_move_checkbox_widget", value=st.session_state.is_storage_move)
+    # 보관이사 및 장거리 이사 여부
+    col_check1, col_check2 = st.columns(2)
+    with col_check1:
+        st.checkbox("📦 보관이사 여부", key="is_storage_move_checkbox_widget")
+    with col_check2:
+        st.checkbox("🛣️ 장거리 이사 적용", key="apply_long_distance") # 장거리 체크박스 위치 변경
+
 
     col1, col2 = st.columns(2)
     with col1:
         st.text_input("👤 고객명", key="customer_name")
         st.text_input("📍 출발지", key="from_location")
         st.date_input("🚚 이사일 (출발일)", key="moving_date")
-        # 장거리 이사 옵션 추가
-        st.selectbox("🛣️ 장거리 이사", ["100km", "200km", "200km 이상", "제주"], key="long_distance")
+        # 장거리 이사 옵션 (체크 시 활성화)
+        if st.session_state.apply_long_distance:
+            st.selectbox("🛣️ 장거리 구간 선택", long_distance_options,
+                         index=long_distance_options.index(st.session_state.long_distance), # 세션 상태 반영
+                         key="long_distance") # key 유지
 
     with col2:
         st.text_input("📞 전화번호", key="customer_phone", placeholder="01012345678")
@@ -238,81 +283,111 @@ with tab1:
 
 # --- 탭 2: 물품 선택 ---
 with tab2:
-    # active_tab_index 조건 제거
     st.header("📋 품목 선택")
     st.caption(f"현재 선택된 기본 이사 유형: **{st.session_state.base_move_type}**")
 
-    # (물품 선택 로직은 이전과 동일 - 코드 생략)
-    # 품목 데이터 정의 (탭 내에서 사용)
-    home_items_def = {
-        "가정품목": {"장롱": items["방"]["장롱"], "더블침대": items["방"]["더블침대"], "서랍장(5단)": items["방"]["서랍장(5단)"],"화장대": items["방"]["화장대"], "TV(75인치)": items["거실"]["TV(75인치)"], "책상&의자": items["방"]["책상&의자"],"책장": items["방"]["책장"], "옷행거": items["방"]["옷행거"], "소파(3인용)": items["거실"]["소파(3인용)"],"장식장": items["거실"]["장식장"], "에어컨": items["거실"]["에어컨"], "4도어 냉장고": items["주방"]["4도어 냉장고"],"김치냉장고(스탠드형)": items["주방"]["김치냉장고(스탠드형)"], "식탁(4인)": items["주방"]["식탁(4인)"],"주방용 선반(수납장)": items["주방"]["주방용 선반(수납장)"], "세탁기 및 건조기": items["기타"]["세탁기 및 건조기"],},
-        "기타품목": {"피아노(일반)": items["거실"]["피아노(일반)"], "피아노(디지털)": items["거실"]["피아노(디지털)"],"안마기": items["거실"]["안마기"], "스타일러스": items["기타"]["스타일러스"], "신발장": items["기타"]["신발장"],"화분": items["기타"]["화분"], "여행가방 및 캐리어": items["기타"]["여행가방 및 캐리어"],},
-    }
-    office_items_def = {
-        "사무실품목": {"중역책상": items["방"]["중역책상"], "책상&의자": items["방"]["책상&의자"], "서랍장(5단)": items["방"]["서랍장(5단)"],"4도어 냉장고": items["주방"]["4도어 냉장고"], "TV(75인치)": items["거실"]["TV(75인치)"], "장식장": items["거실"]["장식장"],"에어컨": items["거실"]["에어컨"], "오디오 및 스피커": items["거실"]["오디오 및 스피커"],},
-        "기타품목": {"안마기": items["거실"]["안마기"], "공기청정기": items["거실"]["공기청정기"], "화분": items["기타"]["화분"],"스타일러스": items["기타"]["스타일러스"], "신발장": items["기타"]["신발장"],},
-    }
-
+    # 이사 유형에 맞는 품목 정의 선택
     item_category_to_display = home_items_def if st.session_state.base_move_type == "가정 이사 🏠" else office_items_def
-
-    current_selection = {}
-    current_boxes = {"중대박스": 0, "옷박스": 0, "중박스": 0}
 
     for section, item_list in item_category_to_display.items():
         with st.expander(f"{section} 선택"):
-            cols = st.columns(3)
-            items_list_items = list(item_list.items())
-            num_items = len(items_list_items)
-            items_per_col = (num_items + 2) // 3
+            # 2열로 변경
+            cols = st.columns(2)
+            num_items = len(item_list)
+            # 2열 기준 분배
+            items_per_col = math.ceil(num_items / 2)
 
-            for idx, (item, (volume, weight)) in enumerate(items_list_items):
+            for idx, item in enumerate(item_list):
                 col_index = idx // items_per_col
-                if col_index < len(cols):
+                if col_index < len(cols): # Ensure col_index is within bounds (0 or 1)
                     with cols[col_index]:
-                        unit = "칸" if item == "장롱" else "개"
-                        default_qty = st.session_state.selected_items.get(item, (0,))[0]
-                        widget_key = f"qty_{st.session_state.base_move_type}_{section}_{item}"
-                        #수정된부분
-                        col1_1, col1_2, col1_3 = st.columns([1,1,1])
-                        if col1_1.button("-", key=f"minus_{widget_key}"):
-                            default_qty = max(0, default_qty - 1)
-                        col1_2.text(default_qty)
-                        if col1_3.button("+", key=f"plus_{widget_key}"):
-                            default_qty +=1
+                        if item in items: # 전체 items 딕셔너리에 있는지 확인
+                            volume, weight = items[item]
+                            unit = "칸" if item == "장롱" else "개"
+                            widget_key = f"qty_{st.session_state.base_move_type}_{section}_{item}"
 
-                        #수정된 부분 끝.
-                        if default_qty > 0:
-                            current_selection[item] = (default_qty, unit, volume, weight)
-                            if st.session_state.base_move_type == "가정 이사 🏠":
-                                if item == "장롱": current_boxes["중대박스"] += default_qty * 5
-                                if item == "서랍장(5단)": current_boxes["중박스"] += default_qty * 5
-
-    st.session_state.selected_items = current_selection
-    st.session_state.additional_boxes = current_boxes
+                            # st.number_input 사용 (반응성 개선 및 상태 관리 용이)
+                            # label 에 품목명 포함하여 보이도록 수정
+                            st.number_input(
+                                label=f"{item} ({unit})",
+                                min_value=0,
+                                step=1,
+                                key=widget_key,
+                                # value는 세션 상태에서 직접 관리되므로 명시적 설정 불필요
+                            )
+                        else:
+                             with cols[col_index]:
+                                 st.warning(f"'{item}' 품목 정보 없음") # 데이터 불일치 시 경고
 
     st.divider()
-    st.subheader("📦 선택한 품목 정보")
-    if st.session_state.selected_items:
-        total_volume = sum(q * v for i, (q, u, v, w) in st.session_state.selected_items.items()) + \
-                        sum(box_volumes[b] * c for b, c in st.session_state.additional_boxes.items())
-        total_weight = sum(q * w for i, (q, u, v, w) in st.session_state.selected_items.items())
+    st.subheader("📦 선택한 품목 정보 및 예상 물량")
 
-cols_disp = st.columns(3)
-item_list_disp = list(st.session_state.selected_items.items())
-items_per_col_disp = (len(item_list_disp) + 2) // 3
-for i, (item, (qty, unit, vol, weight)) in enumerate(item_list_disp):
-    col_idx_disp = i // items_per_col_disp
-    if col_idx_disp < 3:
-        with cols_disp[col_idx_disp]:
-            #글자크기 20% 키워서 보여주기
-            st.write(f"<span style='font-size: 1.2em;'>**{item}**: {qty} {unit}</span>", unsafe_allow_html=True)
+    # 선택된 품목 및 총량 계산 (st.number_input의 세션 상태 직접 사용)
+    current_selection_display = {}
+    total_volume = 0
+    total_weight = 0
+    calculated_boxes = {"중대박스": 0, "옷박스": 0, "중박스": 0} # 박스 수량 동적 계산
+
+    # 현재 이사 유형에 맞는 품목 리스트로 반복
+    item_category_to_calculate = home_items_def if st.session_state.base_move_type == "가정 이사 🏠" else office_items_def
+    for section, item_list_calc in item_category_to_calculate.items():
+        for item_calc in item_list_calc:
+            widget_key_calc = f"qty_{st.session_state.base_move_type}_{section}_{item_calc}"
+            qty = st.session_state.get(widget_key_calc, 0) # 세션에서 수량 가져오기
+
+            if qty > 0 and item_calc in items:
+                volume_calc, weight_calc = items[item_calc]
+                unit_calc = "칸" if item_calc == "장롱" else "개"
+                current_selection_display[item_calc] = (qty, unit_calc)
+                total_volume += qty * volume_calc
+                total_weight += qty * weight_calc
+
+                # 박스 자동 계산 (가정 이사 기준)
+                if st.session_state.base_move_type == "가정 이사 🏠":
+                    if item_calc == "장롱": calculated_boxes["중대박스"] += qty * 5
+                    if item_calc == "서랍장(5단)": calculated_boxes["중박스"] += qty * 5
+                    # 다른 품목에 대한 박스 계산 규칙 추가 가능
+
+    # 박스 부피 추가
+    for box_type, count in calculated_boxes.items():
+        if count > 0:
+            total_volume += box_volumes[box_type] * count
+
+    if current_selection_display:
+        # 선택 품목 2열 표시
+        cols_disp = st.columns(2)
+        item_list_disp = list(current_selection_display.items())
+        items_per_col_disp = math.ceil(len(item_list_disp) / 2)
+
+        for i, (item_disp, (qty_disp, unit_disp)) in enumerate(item_list_disp):
+            col_idx_disp = i // items_per_col_disp
+            if col_idx_disp < 2:
+                 with cols_disp[col_idx_disp]:
+                    # 글자 크기 조정 제거 (기본 크기 사용)
+                    st.write(f"**{item_disp}**: {qty_disp} {unit_disp}")
+
+        # 계산된 박스 표시
+        st.subheader("📦 자동 계산된 박스")
+        box_texts = [f"{b_name}: {b_count}개" for b_name, b_count in calculated_boxes.items() if b_count > 0]
+        if box_texts:
+            st.info(", ".join(box_texts))
+        else:
+            st.info("자동 계산된 박스가 없습니다.")
+
+
+        st.subheader("🚚 추천 차량 정보")
+        st.info(f"📊 총 부피: {total_volume:.2f} m³ | 총 무게: {total_weight:.2f} kg")
+        recommended_vehicle, remaining_space = recommend_vehicle(total_volume, total_weight)
+        st.success(f"🚛 추천 차량: **{recommended_vehicle}** ({remaining_space:.1f}% 여유)")
+        if recommended_vehicle in vehicle_capacity:
+             st.caption(f"({recommended_vehicle} 최대: {vehicle_capacity[recommended_vehicle]}m³, {vehicle_weight_capacity[recommended_vehicle]:,}kg)")
 
     else:
         st.info("선택된 품목이 없습니다.")
         st.subheader("🚚 추천 차량 정보")
         st.info("📊 총 부피: 0.00 m³ | 총 무게: 0.00 kg")
         st.warning("🚛 추천 차량: 품목을 선택해주세요.")
-        # recommended_vehicle = None # 이 변수는 아래에서 다시 계산되므로 여기서 None 설정 불필요
+        recommended_vehicle = None # 추천 차량 없음
 
 # --- 탭 3: 견적 및 비용 ---
 with tab3:
@@ -320,51 +395,77 @@ with tab3:
     is_storage = st.session_state.is_storage_move
 
     # --- 차량 선택 ---
-    # (차량 선택 로직은 이전과 동일)
-    current_total_volume = sum(q * v for i, (q, u, v, w) in st.session_state.selected_items.items()) + \
-                            sum(box_volumes[b] * c for b, c in st.session_state.additional_boxes.items())
-    current_total_weight = sum(q * w for i, (q, u, v, w) in st.session_state.selected_items.items())
+    # 현재 물품 기반 총량 재계산 (tab2와 동일한 로직)
+    current_total_volume = 0
+    current_total_weight = 0
+    recalculated_boxes = {"중대박스": 0, "옷박스": 0, "중박스": 0}
+    item_category_to_recalc = home_items_def if st.session_state.base_move_type == "가정 이사 🏠" else office_items_def
+    for section_recalc, item_list_recalc in item_category_to_recalc.items():
+        for item_recalc in item_list_recalc:
+            widget_key_recalc = f"qty_{st.session_state.base_move_type}_{section_recalc}_{item_recalc}"
+            qty_recalc = st.session_state.get(widget_key_recalc, 0)
+            if qty_recalc > 0 and item_recalc in items:
+                volume_recalc, weight_recalc = items[item_recalc]
+                current_total_volume += qty_recalc * volume_recalc
+                current_total_weight += qty_recalc * weight_recalc
+                # 박스 재계산
+                if st.session_state.base_move_type == "가정 이사 🏠":
+                    if item_recalc == "장롱": recalculated_boxes["중대박스"] += qty_recalc * 5
+                    if item_recalc == "서랍장(5단)": recalculated_boxes["중박스"] += qty_recalc * 5
+
+    for box_type_recalc, count_recalc in recalculated_boxes.items():
+        if count_recalc > 0:
+            current_total_volume += box_volumes[box_type_recalc] * count_recalc
+
     tab3_recommended_vehicle, tab3_remaining_space = recommend_vehicle(current_total_volume, current_total_weight)
 
     col_v1, col_v2 = st.columns([1, 2])
     with col_v1:
-        st.session_state.vehicle_select_radio = st.radio(
+        st.radio( # radio는 key를 사용하면 자동으로 상태 저장
             "차량 선택 방식:", ["자동 추천 차량 사용", "수동으로 차량 선택"],
             index=["자동 추천 차량 사용", "수동으로 차량 선택"].index(st.session_state.vehicle_select_radio),
-            key="vehicle_select_radio_widget_tab3", horizontal=False
+            key="vehicle_select_radio", # 키 변경 및 위젯 접미사 제거
+            horizontal=False
         )
 
     selected_vehicle = None
     with col_v2:
+        vehicle_prices_options = home_vehicle_prices if st.session_state.base_move_type == "가정 이사 🏠" else office_vehicle_prices
+        available_trucks = sorted(vehicle_prices_options.keys(), key=lambda x: vehicle_capacity.get(x, 0))
+
         if st.session_state.vehicle_select_radio == "자동 추천 차량 사용":
-            if tab3_recommended_vehicle and "초과" not in tab3_recommended_vehicle:
+            if tab3_recommended_vehicle and "초과" not in tab3_recommended_vehicle and tab3_recommended_vehicle in available_trucks:
                 selected_vehicle = tab3_recommended_vehicle
                 st.success(f"추천 차량: **{selected_vehicle}**")
-                if selected_vehicle in vehicle_capacity: st.caption(f"({selected_vehicle} 최대: {vehicle_capacity[selected_vehicle]}m³, {vehicle_weight_capacity[selected_vehicle]:,}kg)")
+                if selected_vehicle in vehicle_capacity:
+                    st.caption(f"({selected_vehicle} 최대: {vehicle_capacity[selected_vehicle]}m³, {vehicle_weight_capacity[selected_vehicle]:,}kg)")
+                    st.caption(f"현재 물량: {current_total_volume:.2f} m³ ({current_total_weight:.2f} kg)")
             else:
-                st.error(f"자동 추천 실패: {tab3_recommended_vehicle}. 수동 선택 필요.")
+                st.error(f"자동 추천 실패 또는 부적합: {tab3_recommended_vehicle}. 수동 선택 필요.")
+                # 자동 추천 실패 시 수동 선택 활성화 (옵션)
+                # st.session_state.vehicle_select_radio = "수동으로 차량 선택" # 이 줄을 활성화하면 자동으로 수동 모드로 전환
 
-        if st.session_state.vehicle_select_radio == "수동으로 차량 선택":
-            available_trucks = sorted(home_vehicle_prices.keys(), key=lambda x: vehicle_capacity.get(x, 0))
-            if st.session_state.manual_vehicle_select_value is None and available_trucks:
-                st.session_state.manual_vehicle_select_value = available_trucks[0]
+        # 수동 선택 모드 (자동 추천 실패 시 포함)
+        if st.session_state.vehicle_select_radio == "수동으로 차량 선택" or (st.session_state.vehicle_select_radio == "자동 추천 차량 사용" and (not tab3_recommended_vehicle or "초과" in tab3_recommended_vehicle or tab3_recommended_vehicle not in available_trucks)):
+
+            if st.session_state.manual_vehicle_select_value is None or st.session_state.manual_vehicle_select_value not in available_trucks:
+                 # 유효한 수동 선택값이 없으면, 추천 차량(유효하다면) 또는 첫번째 차량으로 설정
+                 if tab3_recommended_vehicle and "초과" not in tab3_recommended_vehicle and tab3_recommended_vehicle in available_trucks:
+                     st.session_state.manual_vehicle_select_value = tab3_recommended_vehicle
+                 elif available_trucks:
+                     st.session_state.manual_vehicle_select_value = available_trucks[0]
+
             current_manual_index = 0
             if st.session_state.manual_vehicle_select_value in available_trucks:
                 current_manual_index = available_trucks.index(st.session_state.manual_vehicle_select_value)
-            selected_vehicle = st.selectbox("🚚 차량 선택 (수동):", available_trucks, index=current_manual_index, key="manual_vehicle_select_widget_tab3")
-            st.session_state.manual_vehicle_select_value = selected_vehicle
+
+            # selectbox는 key를 사용하면 자동으로 session_state.manual_vehicle_select_value 업데이트
+            selected_vehicle = st.selectbox("🚚 차량 선택 (수동):", available_trucks, index=current_manual_index, key="manual_vehicle_select_value") # 키 변경
             st.info(f"선택 차량: **{selected_vehicle}**")
+            if selected_vehicle in vehicle_capacity:
+                st.caption(f"({selected_vehicle} 최대: {vehicle_capacity[selected_vehicle]}m³, {vehicle_weight_capacity[selected_vehicle]:,}kg)")
+                st.caption(f"현재 물량: {current_total_volume:.2f} m³ ({current_total_weight:.2f} kg)")
 
-        if st.session_state.vehicle_select_radio == "자동 추천 차량 사용" and (not tab3_recommended_vehicle or "초과" in tab3_recommended_vehicle):
-            st.info("자동 추천 차량이 없어 수동으로 선택해주세요.")
-            available_trucks = sorted(home_vehicle_prices.keys(), key=lambda x: vehicle_capacity.get(x, 0))
-            if st.session_state.manual_vehicle_select_value is None and available_trucks:
-                st.session_state.manual_vehicle_select_value = available_trucks[0]
-            current_manual_index = 0
-            if st.session_state.manual_vehicle_select_value in available_trucks:
-                current_manual_index = available_trucks.index(st.session_state.manual_vehicle_select_value)
-            selected_vehicle = st.selectbox("🚚 차량 선택 (수동):", available_trucks, index=current_manual_index, key="manual_vehicle_select_widget_tab3_fallback")
-            st.session_state.manual_vehicle_select_value = selected_vehicle
 
     # --- 기타 옵션 ---
     st.divider()
@@ -380,55 +481,45 @@ with tab3:
         col_sky1, col_sky2 = st.columns(2)
         if uses_sky_from:
             with col_sky1:
-                # 위젯이 세션 상태 sky_hours_from을 직접 업데이트
-                st.number_input(
-                    "출발지 스카이 시간", min_value=2, step=1,
-                    key="sky_hours_from", # value 대신 key 사용
-                    # value=st.session_state.sky_hours_from # value 명시 불필요
+                st.number_input( # key 사용으로 상태 자동 관리
+                    "출발지 스카이 시간", min_value=2, step=1, key="sky_hours_from"
                 )
         if uses_sky_final_to:
             to_label = "최종 도착지" if is_storage else "도착지"
             with col_sky2:
-                # 위젯이 세션 상태 sky_hours_final을 직접 업데이트
-                st.number_input(
-                    f"{to_label} 스카이 시간", min_value=2, step=1,
-                    key="sky_hours_final", # value 대신 key 사용
-                    # value=st.session_state.sky_hours_final # value 명시 불필요
+                st.number_input( # key 사용으로 상태 자동 관리
+                    f"{to_label} 스카이 시간", min_value=2, step=1, key="sky_hours_final"
                 )
 
     # 추가 인원
     col_add1, col_add2, col_add3 = st.columns(3)
     with col_add1:
-        # 위젯이 세션 상태 add_men 을 직접 업데이트
-        st.number_input("추가 남성 인원 👨", min_value=0, step=1, key="add_men") # value 제거
+        st.number_input("추가 남성 인원 👨", min_value=0, step=1, key="add_men") # key 사용
     with col_add2:
-        # 위젯이 세션 상태 add_women 을 직접 업데이트
-        default_women = 1 if st.session_state.base_move_type == "가정 이사 🏠" else 0  #가정이사일경우 기본 여성 1명
-        st.number_input("추가 여성 인원 👩", min_value=0, step=1, key="add_women", value=max(0,default_women)) # value 제거
+        # 가정 이사일 때 기본 여성 1명은 차량 비용에 포함되므로, '추가' 여성은 0부터 시작
+        st.number_input("추가 여성 인원 👩", min_value=0, step=1, key="add_women") # key 사용
     with col_add3:
-         if st.session_state.base_move_type == "가정 이사 🏠":
-            # 위젯이 세션 상태 빼는여성 을 직접 업데이트
-            default_remove_women = 1 if st.session_state.base_move_type == "가정 이사 🏠" else 0
-            st.number_input("빼는 여성인원 🧑‍🔧", min_value=0, step=1, max_value = default_remove_women, key="remove_women")
-    # ---- 아래 두 줄 제거 ----
-    # st.session_state.add_men = additional_men
-    # st.session_state.add_women = additional_women
+       # 가정 이사이고 기본 여성 인원이 있을 때만 빼는 옵션 제공
+       base_women_count = 0
+       if st.session_state.base_move_type == "가정 이사 🏠" and selected_vehicle:
+           base_women_count = home_vehicle_prices.get(selected_vehicle, {}).get('housewife', 0)
+
+       if base_women_count > 0:
+           st.number_input("빼는 여성 인원 🧑‍🔧", min_value=0, step=1, max_value=base_women_count, key="remove_women") # key 사용, 최대값은 기본 여성 인원
+       else:
+           st.caption("기본 여성 인원 없음")
+           if "remove_women" in st.session_state: # 관련 없는 상태 초기화
+                st.session_state.remove_women = 0
+
 
     # 폐기물 처리
     col_waste1, col_waste2 = st.columns(2)
     with col_waste1:
-        # 위젯이 세션 상태 has_waste_check 를 직접 업데이트
-        st.checkbox("폐기물 처리 필요 🗑️", key="has_waste_check") # value 제거
-    # ---- 아래 줄 제거 ----
-    # st.session_state.has_waste_check = has_waste
+        st.checkbox("폐기물 처리 필요 🗑️", key="has_waste_check") # key 사용
     with col_waste2:
-        waste_tons = 0 # 로컬 변수는 필요시 계속 사용 가능
-        if st.session_state.has_waste_check: # 세션 상태에서 직접 확인
-            # 위젯이 세션 상태 waste_tons_input 를 직접 업데이트
-            waste_tons = st.number_input("폐기물 양 (톤)", min_value=0.5, max_value=10.0, step=0.5, key="waste_tons_input") # value 제거
+        if st.session_state.has_waste_check: # 체크 시에만 표시
+            st.number_input("폐기물 양 (톤)", min_value=0.5, max_value=10.0, step=0.5, key="waste_tons_input") # key 사용
             st.caption("💡 1톤당 30만원 추가")
-            # ---- 아래 줄 제거 ----
-            # st.session_state.waste_tons_input = waste_tons
 
 
     # 날짜 유형 선택
@@ -441,7 +532,6 @@ with tab3:
     if cols_date[1].checkbox(date_options[1], key="date_opt_1_widget"): selected_dates.append(date_options[1])
     if cols_date[2].checkbox(date_options[2], key="date_opt_2_widget"): selected_dates.append(date_options[2])
     if cols_date[3].checkbox(date_options[3], key="date_opt_3_widget"): selected_dates.append(date_options[3])
-    # ---- 체크박스 값에 대한 명시적 세션 상태 할당 제거 ----
 
 
     # --- 비용 계산 ---
@@ -450,39 +540,64 @@ with tab3:
 
     total_cost = 0
     calculated_cost_items = []
-    base_info = {}
+    base_info = {} # 기본 차량 정보 저장용
 
     if selected_vehicle:
-        # 비용 계산 시에는 세션 상태에서 값을 직접 읽어옴
-        additional_men_cost = st.session_state.add_men # 세션 상태에서 읽기
-        additional_women_cost = st.session_state.add_women # 세션 상태에서 읽기
-        remove_women_cost = st.session_state.remove_women #빼는 인원 적용
-        has_waste_cost = st.session_state.has_waste_check # 세션 상태에서 읽기
-        waste_tons_cost = st.session_state.waste_tons_input if has_waste_cost else 0 # 세션 상태에서 읽기
+        # 비용 계산 시 세션 상태에서 값을 직접 읽어옴
+        additional_men_calc = st.session_state.add_men
+        additional_women_calc = st.session_state.add_women
+        remove_women_calc = st.session_state.remove_women
+        has_waste_calc = st.session_state.has_waste_check
+        waste_tons_calc = st.session_state.waste_tons_input if has_waste_calc else 0
 
-        # 1. 기본 비용
+        # 1. 기본 비용 (차량 + 기본 인원)
         base_move_cost_type = home_vehicle_prices if st.session_state.base_move_type == "가정 이사 🏠" else office_vehicle_prices
-        base_info = base_move_cost_type.get(selected_vehicle, {"price": 0, "men": 0})
-        if 'housewife' not in base_info: base_info['housewife'] = 0
+        base_info = base_move_cost_type.get(selected_vehicle, {"price": 0, "men": 0, "housewife": 0}) # housewife 기본값 추가
         base_cost_one_way = base_info.get("price", 0)
 
-        # 1.5 장거리 추가 비용
-        long_distance_cost = long_distance_prices.get(st.session_state.long_distance, 0)
-        total_cost += long_distance_cost
-        calculated_cost_items.append(["장거리 추가비용", f"{long_distance_cost:,}원", st.session_state.long_distance])
+        # 빼는 여성 인원 비용 차감 (기본 비용 계산 전에 반영)
+        if st.session_state.base_move_type == "가정 이사 🏠" and remove_women_calc > 0:
+             # 기본 여성 인원이 있는 경우에만 차감 가능
+             if base_info.get('housewife', 0) >= remove_women_calc:
+                 # 여기서 base_cost_one_way를 직접 줄이지 않고, 나중에 추가 인원 비용 계산시 반영
+                 pass # 실제 차감은 추가 인원 비용 계산 파트에서
+             else:
+                 # 혹시 모를 오류 방지 (max_value 설정으로 이 경우는 거의 없음)
+                 st.warning(f"기본 여성 인원({base_info.get('housewife',0)}명)보다 많은 인원({remove_women_calc}명)을 뺄 수 없습니다.")
+                 remove_women_calc = base_info.get('housewife', 0) # 최대치로 조정
 
+
+        # 기본 비용 적용 (보관 여부에 따라)
         if is_storage:
             base_cost_calculated = base_cost_one_way * 2
             total_cost += base_cost_calculated
-            calculated_cost_items.append(["기본 이사 비용 (보관x2)", f"{base_cost_calculated:,}원", f"{selected_vehicle} 기준"])
+            calculated_cost_items.append(["기본 이사 비용 (보관x2)", f"{base_cost_calculated:,}원", f"{selected_vehicle} (기본 남{base_info.get('men', 0)}, 여{base_info.get('housewife', 0)})"])
         else:
             base_cost_calculated = base_cost_one_way
             total_cost += base_cost_calculated
-            calculated_cost_items.append(["기본 이사 비용", f"{base_cost_calculated:,}원", f"{selected_vehicle} 기준"])
+            calculated_cost_items.append(["기본 이사 비용", f"{base_cost_calculated:,}원", f"{selected_vehicle} (기본 남{base_info.get('men', 0)}, 여{base_info.get('housewife', 0)})"])
 
-        # 2. 작업 비용
-        ladder_vehicle_size = "5톤"
-        if selected_vehicle in ["6톤", "7.5톤", "10톤"]: ladder_vehicle_size = selected_vehicle
+
+        # 1.5 장거리 추가 비용 (조건부 적용)
+        selected_distance_calc = st.session_state.get("long_distance", "선택 안 함")
+        if st.session_state.apply_long_distance and selected_distance_calc != "선택 안 함":
+            long_distance_cost_calc = long_distance_prices.get(selected_distance_calc, 0)
+            if long_distance_cost_calc > 0:
+                total_cost += long_distance_cost_calc
+                calculated_cost_items.append(["장거리 추가비용", f"{long_distance_cost_calc:,}원", selected_distance_calc])
+
+
+        # 2. 작업 비용 (사다리, 스카이)
+        ladder_vehicle_size = "5톤" # 사다리 비용 기준 톤수 결정
+        try:
+            # selected_vehicle 에서 톤 숫자 추출
+            vehicle_ton = float(re.findall(r'\d+\.?\d*', selected_vehicle)[0])
+            if vehicle_ton >= 10: ladder_vehicle_size = "10톤"
+            elif vehicle_ton >= 7.5: ladder_vehicle_size = "7.5톤"
+            elif vehicle_ton >= 6: ladder_vehicle_size = "6톤"
+            # 그 외는 기본 "5톤" 유지
+        except:
+            pass # 숫자 추출 실패 시 기본 "5톤" 유지
 
         # 출발지
         ladder_from_cost = 0; sky_from_cost = 0
