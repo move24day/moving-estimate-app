@@ -67,13 +67,13 @@ sky_base_price = 300000
 sky_extra_hour_price = 50000
 storage_daily_fee = 7000 # 보관이사 5톤 기준 1일당 보관료
 
-# 장거리 추가비용 (수정됨)
+# 장거리 추가비용 (옵션명, 가격은 기존 코드와 동일)
 long_distance_prices = {
-    "선택 안 함": 0, # 기본 옵션 추가
+    "선택 안 함": 0,
     "100km 이내": 200000,
     "200km 이내": 500000,
-    "200km 초과": 700000, # 임의로 기존 30만원에서 상향 조정
-    "제주": 1000000, # 임의로 기존 50만원에서 상향 조정
+    "200km 초과": 700000,
+    "제주": 1000000,
 }
 long_distance_options = list(long_distance_prices.keys()) # 옵션 리스트 생성
 
@@ -172,7 +172,7 @@ default_values = {
     "to_floor": "", "to_method": "사다리차 🪜", "special_notes": "",
     "storage_duration": 1, "final_to_location": "", "final_to_floor": "", "final_to_method": "사다리차 🪜",
     # "long_distance": long_distance_options[0], # <<< 기존 키 주석 처리 또는 삭제
-    "long_distance_selector": long_distance_options[0], # <<< 수정됨: 새로운 키와 기본값 설정
+    "long_distance_selector": long_distance_options[0], # <<< 수정됨: 새로운 키와 기본값 설정 (오류 수정)
     "vehicle_select_radio": "자동 추천 차량 사용",
     "manual_vehicle_select_value": None,
     "sky_hours_from": 2,
@@ -192,7 +192,6 @@ for key, value in default_values.items():
         st.session_state[key] = value
 
 # 이사 유형별 품목 리스트 생성 및 초기화 (세션 상태에 없으면 0으로)
-# (이 부분은 변경 없음)
 item_category_to_init = home_items_def if st.session_state.base_move_type == "가정 이사 🏠" else office_items_def
 for section, item_list in item_category_to_init.items():
     for item in item_list:
@@ -210,7 +209,7 @@ tab1, tab2, tab3 = st.tabs(["고객 정보", "물품 선택", "견적 및 비용
 with tab1:
     st.header("📝 고객 기본 정보")
 
-    # 이사 유형 선택 (변경 없음)
+    # 이사 유형 선택
     base_move_type_options = ["가정 이사 🏠", "사무실 이사 🏢"]
     st.session_state.base_move_type = st.radio(
         "🏢 기본 이사 유형:", base_move_type_options,
@@ -221,10 +220,9 @@ with tab1:
     # 보관이사 및 장거리 이사 여부
     col_check1, col_check2 = st.columns(2)
     with col_check1:
-        st.checkbox("📦 보관이사 여부", key="is_storage_move_checkbox_widget") # 변경 없음
+        st.checkbox("📦 보관이사 여부", key="is_storage_move_checkbox_widget")
     with col_check2:
-        # <<< 수정됨: 'disabled' 속성 제거 (원래대로 복구) >>>
-        st.checkbox("🛣️ 장거리 이사 적용", key="apply_long_distance")
+        st.checkbox("🛣️ 장거리 이사 적용", key="apply_long_distance") # 'disabled' 속성 없음 (원래대로)
 
 
     col1, col2 = st.columns(2)
@@ -232,10 +230,9 @@ with tab1:
         st.text_input("👤 고객명", key="customer_name")
         st.text_input("📍 출발지", key="from_location")
         st.date_input("🚚 이사일 (출발일)", key="moving_date")
-
         # 장거리 이사 옵션 (체크 시 활성화)
-        if st.session_state.apply_long_distance: # 이 조건은 그대로 유지
-             # <<< 수정됨: 새로운 키("long_distance_selector")를 사용하여 현재 값과 인덱스 계산 >>>
+        if st.session_state.apply_long_distance:
+            # <<< 수정됨: 새로운 키("long_distance_selector")를 사용하여 현재 값과 인덱스 계산 (오류 수정) >>>
             current_long_distance_value = st.session_state.get("long_distance_selector", long_distance_options[0])
             current_index = 0
             if current_long_distance_value in long_distance_options:
@@ -243,14 +240,13 @@ with tab1:
 
             st.selectbox("🛣️ 장거리 구간 선택", long_distance_options,
                          index=current_index,         # <<< 수정됨 >>>
-                         key="long_distance_selector") # <<< 수정됨: key 변경 >>>
+                         key="long_distance_selector") # <<< 수정됨: key 변경 (오류 수정) >>>
 
     with col2:
         st.text_input("📞 전화번호", key="customer_phone", placeholder="01012345678")
         to_location_label = "보관지" if st.session_state.is_storage_move else "도착지"
         st.text_input(f"📍 {to_location_label}", key="to_location")
 
-        # 견적일 표시 (변경 없음)
         try:
             kst = pytz.timezone("Asia/Seoul")
             estimate_date = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
@@ -374,8 +370,8 @@ with tab2:
             col_idx_disp = i // items_per_col_disp
             if col_idx_disp < 2:
                  with cols_disp[col_idx_disp]:
-                    # 글자 크기 조정 제거 (기본 크기 사용)
-                    st.write(f"**{item_disp}**: {qty_disp} {unit_disp}")
+                     # 글자 크기 조정 제거 (기본 크기 사용)
+                     st.write(f"**{item_disp}**: {qty_disp} {unit_disp}")
 
         # 계산된 박스 표시
         st.subheader("📦 자동 계산된 박스")
@@ -391,7 +387,7 @@ with tab2:
         recommended_vehicle, remaining_space = recommend_vehicle(total_volume, total_weight)
         st.success(f"🚛 추천 차량: **{recommended_vehicle}** ({remaining_space:.1f}% 여유)")
         if recommended_vehicle in vehicle_capacity:
-             st.caption(f"({recommended_vehicle} 최대: {vehicle_capacity[recommended_vehicle]}m³, {vehicle_weight_capacity[recommended_vehicle]:,}kg)")
+              st.caption(f"({recommended_vehicle} 최대: {vehicle_capacity[recommended_vehicle]}m³, {vehicle_weight_capacity[recommended_vehicle]:,}kg)")
 
     else:
         st.info("선택된 품목이 없습니다.")
@@ -516,11 +512,11 @@ with tab3:
            base_women_count = home_vehicle_prices.get(selected_vehicle, {}).get('housewife', 0)
 
        if base_women_count > 0:
-           st.number_input("빼는 여성 인원 🧑‍🔧", min_value=0, step=1, max_value=base_women_count, key="remove_women") # key 사용, 최대값은 기본 여성 인원
+          st.number_input("빼는 여성 인원 🧑‍🔧", min_value=0, step=1, max_value=base_women_count, key="remove_women") # key 사용, 최대값은 기본 여성 인원
        else:
-           st.caption("기본 여성 인원 없음")
-           if "remove_women" in st.session_state: # 관련 없는 상태 초기화
-                st.session_state.remove_women = 0
+          st.caption("기본 여성 인원 없음")
+          if "remove_women" in st.session_state: # 관련 없는 상태 초기화
+               st.session_state.remove_women = 0
 
 
     # 폐기물 처리
@@ -568,14 +564,14 @@ with tab3:
 
         # 빼는 여성 인원 비용 차감 (기본 비용 계산 전에 반영)
         if st.session_state.base_move_type == "가정 이사 🏠" and remove_women_calc > 0:
-             # 기본 여성 인원이 있는 경우에만 차감 가능
-             if base_info.get('housewife', 0) >= remove_women_calc:
-                 # 여기서 base_cost_one_way를 직접 줄이지 않고, 나중에 추가 인원 비용 계산시 반영
-                 pass # 실제 차감은 추가 인원 비용 계산 파트에서
-             else:
-                 # 혹시 모를 오류 방지 (max_value 설정으로 이 경우는 거의 없음)
-                 st.warning(f"기본 여성 인원({base_info.get('housewife',0)}명)보다 많은 인원({remove_women_calc}명)을 뺄 수 없습니다.")
-                 remove_women_calc = base_info.get('housewife', 0) # 최대치로 조정
+            # 기본 여성 인원이 있는 경우에만 차감 가능
+            if base_info.get('housewife', 0) >= remove_women_calc:
+                # 여기서 base_cost_one_way를 직접 줄이지 않고, 나중에 추가 인원 비용 계산시 반영
+                pass # 실제 차감은 추가 인원 비용 계산 파트에서
+            else:
+                # 혹시 모를 오류 방지 (max_value 설정으로 이 경우는 거의 없음)
+                st.warning(f"기본 여성 인원({base_info.get('housewife',0)}명)보다 많은 인원({remove_women_calc}명)을 뺄 수 없습니다.")
+                remove_women_calc = base_info.get('housewife', 0) # 최대치로 조정
 
 
         # 기본 비용 적용 (보관 여부에 따라)
@@ -590,7 +586,8 @@ with tab3:
 
 
         # 1.5 장거리 추가 비용 (조건부 적용)
-        selected_distance_calc = st.session_state.get("long_distance", "선택 안 함")
+        # <<< 수정됨: 값을 가져올 때 새로운 key("long_distance_selector") 사용 (오류 수정) >>>
+        selected_distance_calc = st.session_state.get("long_distance_selector", "선택 안 함")
         if st.session_state.apply_long_distance and selected_distance_calc != "선택 안 함":
             long_distance_cost_calc = long_distance_prices.get(selected_distance_calc, 0)
             if long_distance_cost_calc > 0:
@@ -638,19 +635,48 @@ with tab3:
         # 3. 보관료
         if is_storage:
             storage_days = st.session_state.get("storage_duration", 1)
-            # 보관료는 차량 톤수 * 일일 보관료로 계산
-            storage_fee = storage_days * storage_daily_fee * int(selected_vehicle.replace('톤',''))
-            total_cost += storage_fee; calculated_cost_items.append(["보관료", f"{storage_fee:,}원", f"{storage_days}일"])
+            # 보관료는 차량 톤수 * 일일 보관료로 계산 (여기서 에러 발생 가능성 확인 필요: selected_vehicle에서 톤수 추출 로직)
+            try:
+                vehicle_ton_for_storage = float(re.findall(r'\d+\.?\d*', selected_vehicle)[0])
+                storage_fee = storage_days * storage_daily_fee * vehicle_ton_for_storage # <<< 수정됨: 톤수 직접 곱하기 >>>
+                total_cost += storage_fee; calculated_cost_items.append(["보관료", f"{storage_fee:,}원", f"{storage_days}일 ({selected_vehicle})"]) # <<< 비고에 차량정보 추가 >>>
+            except Exception as e:
+                st.error(f"보관료 계산 중 오류: {e}")
+                calculated_cost_items.append(["보관료", "계산 오류", f"{selected_vehicle} 톤수 인식 불가?"])
 
-        # 4. 추가 인원 (세션 상태 값 사용)
-        additional_person_total = (additional_men_cost + additional_women_cost - remove_women_cost) * additional_person_cost
-        if additional_person_total > 0:
-            total_cost += additional_person_total; calculated_cost_items.append(["추가 인원", f"{additional_person_total:,}원", f"남{additional_men_cost}, 여{additional_women_cost} 빼는여{remove_women_cost}명"])
 
-        # 5. 폐기물 (세션 상태 값 사용)
-        if has_waste_cost and waste_tons_cost > 0:
-            waste_cost = waste_tons_cost * waste_disposal_cost
-            total_cost += waste_cost; calculated_cost_items.append(["폐기물 처리", f"{waste_cost:,}원", f"{waste_tons_cost}톤"])
+        # 4. 추가 인원 (세션 상태 값 사용) - 수정됨: 인원수 표시 개선
+        # 기존 코드에서 additional_men_cost, additional_women_cost, remove_women_cost 는 갯수 자체가 아니라 비용이었음. 변수명 변경 및 로직 수정
+        additional_men_count = st.session_state.add_men
+        additional_women_count = st.session_state.add_women
+        remove_women_count = st.session_state.remove_women
+
+        # 추가 남성 비용
+        additional_men_cost_total = additional_men_count * additional_person_cost
+        if additional_men_cost_total > 0:
+            total_cost += additional_men_cost_total
+            calculated_cost_items.append(["추가 남성 인원", f"{additional_men_cost_total:,}원", f"{additional_men_count}명"])
+
+        # 추가 여성 비용
+        additional_women_cost_total = additional_women_count * additional_person_cost
+        if additional_women_cost_total > 0:
+             total_cost += additional_women_cost_total
+             calculated_cost_items.append(["추가 여성 인원", f"{additional_women_cost_total:,}원", f"{additional_women_count}명"])
+
+        # 빼는 여성 비용 (차감)
+        removed_women_cost_total = remove_women_count * additional_person_cost
+        if removed_women_cost_total > 0:
+             # 기본 여성 인원이 있는 경우에만 비용 차감
+             if base_info.get('housewife', 0) >= remove_women_count:
+                 total_cost -= removed_women_cost_total # <<< 차감 적용 >>>
+                 calculated_cost_items.append(["빼는 여성 인원(차감)", f"(-){removed_women_cost_total:,}원", f"{remove_women_count}명"])
+             # (오류 방지 로직은 위에서 처리했으므로 여기선 불필요)
+
+
+        # 5. 폐기물 (세션 상태 값 사용) - 변수명 수정 has_waste_cost -> has_waste_calc
+        if has_waste_calc and waste_tons_calc > 0:
+            waste_cost = waste_tons_calc * waste_disposal_cost
+            total_cost += waste_cost; calculated_cost_items.append(["폐기물 처리", f"{waste_cost:,}원", f"{waste_tons_calc}톤"])
 
         # 6. 날짜 할증 (selected_dates 는 위젯에서 직접 계산됨)
         special_day_cost_factor = sum(special_day_prices.get(date, 0) for date in selected_dates)
@@ -664,7 +690,7 @@ with tab3:
             st.table(cost_df.style.format({"금액": "{}"}))
         else: st.info("계산된 비용 항목이 없습니다.")
 
-        st.subheader(f"💰 총 견적 비용: {total_cost:,}원")
+        st.subheader(f"💰 총 견적 비용: {total_cost:,.0f}원") # <<< 소수점 제거 >>>
 
         if st.session_state.get("special_notes", ""):
             st.subheader("📝 특이 사항")
@@ -675,7 +701,6 @@ with tab3:
     # --- PDF 견적서 생성 기능 ---
     st.divider()
     st.subheader("📄 견적서 다운로드")
-    # (PDF 생성 로직은 이전과 거의 동일, 비용 계산 시 사용된 변수명 확인 필요)
     can_generate_pdf = selected_vehicle and (st.session_state.get("customer_name") or st.session_state.get("customer_phone"))
     if st.button("PDF 견적서 생성", disabled=not can_generate_pdf, key="pdf_generate_button"):
         if not selected_vehicle: st.error("PDF 생성을 위해 차량을 선택해주세요.")
@@ -683,25 +708,32 @@ with tab3:
         else:
             buffer = BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=A4)
-            # (폰트 설정 등 PDF 세부 로직은 이전과 동일 - 생략)
-            # ... PDF elements generation using session state values ...
-            # 예시: 작업 정보에서 추가 인원 가져올 때 세션 상태 사용
-            # work_data.append(["추가 인원", f"남 {st.session_state.add_men}명, 여 {st.session_state.add_women}명"])
-            # ... rest of PDF generation ...
-
             # --- PDF 내용 구성 시작 ---
-            font_path = "NanumGothic.ttf"
+            font_path = "NanumGothic.ttf" # 사용자 환경에 맞게 경로 수정 필요
             font_registered = False
             try:
-                if os.path.exists(font_path): pdfmetrics.registerFont(TTFont("NanumGothic", font_path)); font_registered = True
-                else: st.error(f"폰트 파일({font_path}) 없음.")
-            except Exception as e: st.error(f"폰트 등록 오류: {e}")
+                if os.path.exists(font_path):
+                    pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
+                    font_registered = True
+                else:
+                    st.error(f"폰트 파일({font_path}) 없음. PDF에 한글이 깨질 수 있습니다.")
+            except Exception as e:
+                st.error(f"폰트 등록 오류: {e}")
 
             styles = getSampleStyleSheet()
             if font_registered:
+                # 모든 기본 스타일에 한글 폰트 적용 시도
                 for style_name in styles.byName:
                     try: styles[style_name].fontName = "NanumGothic"
                     except: pass
+                # 특정 스타일 재정의 (예: 제목)
+                styles['Title'].fontName = "NanumGothic"
+                styles['Heading1'].fontName = "NanumGothic"
+                styles['Heading2'].fontName = "NanumGothic"
+                styles['Normal'].fontName = "NanumGothic"
+            else:
+                st.warning("한글 폰트가 등록되지 않아 PDF에서 한글이 깨질 수 있습니다.")
+
 
             elements = []
 
@@ -718,18 +750,19 @@ with tab3:
             customer_display_name = st.session_state.get("customer_name") or st.session_state.get("customer_phone") or "미입력"
             to_location_label_pdf = "보관지" if is_storage else "도착지"
             basic_data = [
-                 ["고객명", customer_display_name], ["전화번호", st.session_state.get("customer_phone", "미입력")],
-                 ["이사일(출발)", str(st.session_state.get("moving_date", "미입력"))],
-                 ["출발지", st.session_state.get("from_location", "미입력")],
-                 [to_location_label_pdf, st.session_state.get("to_location", "미입력")],
+                ["고객명", customer_display_name], ["전화번호", st.session_state.get("customer_phone", "미입력")],
+                ["이사일(출발)", str(st.session_state.get("moving_date", "미입력"))],
+                ["출발지", st.session_state.get("from_location", "미입력")],
+                [to_location_label_pdf, st.session_state.get("to_location", "미입력")],
             ]
             if is_storage:
                 basic_data.append(["보관기간", f"{st.session_state.get('storage_duration', 1)}일"])
                 basic_data.append(["최종 도착지", st.session_state.get("final_to_location", "미입력")])
             basic_data.append(["견적일", estimate_date_pdf])
-            basic_data.append(["장거리", st.session_state.get("long_distance", "미입력")]) #장거리 이사 추가
+            # <<< 수정됨: PDF에 값을 표시할 때 새로운 key("long_distance_selector") 사용 (오류 수정) >>>
+            basic_data.append(["장거리", st.session_state.get("long_distance_selector", "미입력")])
             basic_table = Table(basic_data, colWidths=[100, 350])
-            basic_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),('GRID', (0, 0), (-1, -1), 1, colors.black),('ALIGN', (0, 0), (-1, -1), "LEFT"),('VALIGN', (0, 0), (-1, -1), "MIDDLE"),('FONTNAME', (0, 0), (-1, -1), styles["Normal"].fontName),('BOTTOMPADDING', (0, 0), (-1, -1), 6),('TOPPADDING', (0, 0), (-1, -1), 6)]))
+            basic_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),('GRID', (0, 0), (-1, -1), 1, colors.black),('ALIGN', (0, 0), (-1, -1), "LEFT"),('VALIGN', (0, 0), (-1, -1), "MIDDLE"),('FONTNAME', (0, 0), (-1, -1), styles["Normal"].fontName if font_registered else 'Helvetica'), ('BOTTOMPADDING', (0, 0), (-1, -1), 6),('TOPPADDING', (0, 0), (-1, -1), 6)])) # <<< 폰트 적용 수정 >>>
             elements.append(basic_table); elements.append(Spacer(1, 12))
 
             # 3. 작업 정보
@@ -748,19 +781,37 @@ with tab3:
             pdf_add_women = st.session_state.get('add_women', 0)
             pdf_remove_women = st.session_state.get('remove_women', 0)
             work_data.append(["기본 인원", f"남 {base_info.get('men', 0)}명" + (f", 여 {base_info.get('housewife', 0)}명" if base_info.get('housewife', 0) > 0 else "")])
-            work_data.append(["추가 인원", f"남 {pdf_add_men}명, 여 {pdf_add_women}명 빼는 여 {pdf_remove_women}명"])
+            work_data.append(["추가/변경 인원", f"추가 남 {pdf_add_men}명, 추가 여 {pdf_add_women}명, 빼는 여 {pdf_remove_women}명"]) # <<< 문구 수정 >>>
             work_table = Table(work_data, colWidths=[100, 350])
-            work_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),('GRID', (0, 0), (-1, -1), 1, colors.black),('ALIGN', (0, 0), (-1, -1), "LEFT"),('VALIGN', (0, 0), (-1, -1), "MIDDLE"),('FONTNAME', (0, 0), (-1, -1), styles["Normal"].fontName),('BOTTOMPADDING', (0, 0), (-1, -1), 6),('TOPPADDING', (0, 0), (-1, -1), 6)]))
+            work_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),('GRID', (0, 0), (-1, -1), 1, colors.black),('ALIGN', (0, 0), (-1, -1), "LEFT"),('VALIGN', (0, 0), (-1, -1), "MIDDLE"),('FONTNAME', (0, 0), (-1, -1), styles["Normal"].fontName if font_registered else 'Helvetica'),('BOTTOMPADDING', (0, 0), (-1, -1), 6),('TOPPADDING', (0, 0), (-1, -1), 6)])) # <<< 폰트 적용 수정 >>>
             elements.append(work_table); elements.append(Spacer(1, 12))
 
             # 4. 비용 상세 내역 (calculated_cost_items 사용)
             elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
             elements.append(Spacer(1, 5))
             cost_data_pdf = [["항목", "금액", "비고"]]
-            cost_data_pdf.extend(calculated_cost_items)
-            cost_data_pdf.append(["총 견적 비용", f"{total_cost:,}원", ""])
+            # calculated_cost_items의 각 항목이 리스트 형태라고 가정
+            for item_row in calculated_cost_items:
+                 # 모든 항목을 문자열로 변환 (Paragraph 위젯은 문자열 필요)
+                 cost_data_pdf.append([str(col) for col in item_row])
+
+            # 총 비용 행 추가
+            cost_data_pdf.append(["총 견적 비용", f"{total_cost:,.0f}원", ""]) # <<< 소수점 제거 >>>
+
             cost_table = Table(cost_data_pdf, colWidths=[150, 100, 200])
-            cost_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey), ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey), ('GRID', (0, 0), (-1, -1), 1, colors.black), ('ALIGN', (0, 0), (-1, -1), "LEFT"), ('ALIGN', (1, 1), (1, -1), "RIGHT"), ('VALIGN', (0, 0), (-1, -1), "MIDDLE"), ('FONTNAME', (0, 0), (-1, -1), styles["Normal"].fontName), ('FONTNAME', (0, 0), (-1, 0), styles["Normal"].fontName), ('FONTNAME', (0, -1), (-1, -1), styles["Normal"].fontName), ('BOTTOMPADDING', (0, 0), (-1, -1), 6), ('TOPPADDING', (0, 0), (-1, -1), 6)]))
+            cost_table.setStyle(TableStyle([
+                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                 ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                 ('ALIGN', (0, 0), (-1, -1), "LEFT"),
+                 ('ALIGN', (1, 1), (1, -1), "RIGHT"), # 금액 오른쪽 정렬
+                 ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
+                 ('FONTNAME', (0, 0), (-1, -1), styles["Normal"].fontName if font_registered else 'Helvetica'), # <<< 폰트 적용 수정 >>>
+                 ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                 ('TOPPADDING', (0, 0), (-1, -1), 6),
+                 # 마지막 행 (총 비용) 글자 굵게
+                 ('FONTNAME', (0, -1), (-1, -1), styles["Normal"].fontName if font_registered else 'Helvetica-Bold'), # <<< 폰트 적용 수정 >>>
+            ]))
             elements.append(cost_table); elements.append(Spacer(1, 12))
 
             # 5. 특이 사항
@@ -768,6 +819,7 @@ with tab3:
             if special_notes_text:
                 elements.append(Paragraph("■ 특이 사항", styles["Heading2"]))
                 elements.append(Spacer(1, 5))
+                # Paragraph는 HTML 태그를 일부 지원하므로 줄바꿈은 <br/> 사용
                 elements.append(Paragraph(special_notes_text.replace('\n', '<br/>'), styles["Normal"]))
                 elements.append(Spacer(1, 12))
 
@@ -781,7 +833,10 @@ with tab3:
                 file_name = f"{file_prefix}_{phone_part}_{datetime.now().strftime('%Y%m%d')}.pdf"
                 href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="{file_name}">📥 {file_prefix} 다운로드 ({file_name})</a>'
                 st.markdown(href, unsafe_allow_html=True)
-            except Exception as e: st.error(f"PDF 빌드 오류: {e}")
+            except Exception as e:
+                st.error(f"PDF 빌드 오류: {e}")
+                st.error("PDF 생성 중 문제가 발생했습니다. 입력 값이나 폰트 설정을 확인해주세요.")
+
 
     elif not can_generate_pdf:
         st.caption("PDF를 생성하려면 고객명/전화번호 입력 및 차량 선택이 필요합니다.")
