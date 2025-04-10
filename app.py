@@ -315,26 +315,24 @@ with tab2:
 
 # --- 탭 3: 견적 및 비용 ---
 with tab3:
-    # active_tab_index 조건 제거
     st.header("💰 이사 비용 계산")
     is_storage = st.session_state.is_storage_move
 
     # --- 차량 선택 ---
+    # (차량 선택 로직은 이전과 동일)
     current_total_volume = sum(q * v for i, (q, u, v, w) in st.session_state.selected_items.items()) + \
                            sum(box_volumes[b] * c for b, c in st.session_state.additional_boxes.items())
     current_total_weight = sum(q * w for i, (q, u, v, w) in st.session_state.selected_items.items())
     tab3_recommended_vehicle, tab3_remaining_space = recommend_vehicle(current_total_volume, current_total_weight)
 
-    # 차량 선택 라디오 버튼 (세션 상태 사용)
     col_v1, col_v2 = st.columns([1, 2])
     with col_v1:
         st.session_state.vehicle_select_radio = st.radio(
             "차량 선택 방식:", ["자동 추천 차량 사용", "수동으로 차량 선택"],
-            index=["자동 추천 차량 사용", "수동으로 차량 선택"].index(st.session_state.vehicle_select_radio), # 현재 상태로 인덱스 설정
+            index=["자동 추천 차량 사용", "수동으로 차량 선택"].index(st.session_state.vehicle_select_radio),
             key="vehicle_select_radio_widget_tab3", horizontal=False
         )
 
-    # 선택된 차량 결정 로직
     selected_vehicle = None
     with col_v2:
         if st.session_state.vehicle_select_radio == "자동 추천 차량 사용":
@@ -344,27 +342,18 @@ with tab3:
                 if selected_vehicle in vehicle_capacity: st.caption(f"({selected_vehicle} 최대: {vehicle_capacity[selected_vehicle]}m³, {vehicle_weight_capacity[selected_vehicle]:,}kg)")
             else:
                  st.error(f"자동 추천 실패: {tab3_recommended_vehicle}. 수동 선택 필요.")
-                 # 수동으로 강제 전환하지 않고, 메시지만 표시 후 아래 수동 로직에서 처리되도록 함
-                 # 또는, 필요시 st.session_state.vehicle_select_radio = "수동으로 차량 선택" 후 rerun
 
         if st.session_state.vehicle_select_radio == "수동으로 차량 선택":
              available_trucks = sorted(home_vehicle_prices.keys(), key=lambda x: vehicle_capacity.get(x, 0))
-             # 수동 선택 값이 없으면 첫 번째 트럭으로 초기화
              if st.session_state.manual_vehicle_select_value is None and available_trucks:
                  st.session_state.manual_vehicle_select_value = available_trucks[0]
-             # 현재 수동 선택 값으로 인덱스 설정
              current_manual_index = 0
              if st.session_state.manual_vehicle_select_value in available_trucks:
                   current_manual_index = available_trucks.index(st.session_state.manual_vehicle_select_value)
-
-             selected_vehicle = st.selectbox("🚚 차량 선택 (수동):", available_trucks,
-                                             index=current_manual_index,
-                                             key="manual_vehicle_select_widget_tab3")
-             # 선택 변경 시 세션 상태 업데이트
+             selected_vehicle = st.selectbox("🚚 차량 선택 (수동):", available_trucks, index=current_manual_index, key="manual_vehicle_select_widget_tab3")
              st.session_state.manual_vehicle_select_value = selected_vehicle
              st.info(f"선택 차량: **{selected_vehicle}**")
 
-        # 자동 추천 실패 시 수동 선택기가 자동으로 나타나도록 처리
         if st.session_state.vehicle_select_radio == "자동 추천 차량 사용" and (not tab3_recommended_vehicle or "초과" in tab3_recommended_vehicle):
             st.info("자동 추천 차량이 없어 수동으로 선택해주세요.")
             available_trucks = sorted(home_vehicle_prices.keys(), key=lambda x: vehicle_capacity.get(x, 0))
@@ -373,17 +362,13 @@ with tab3:
             current_manual_index = 0
             if st.session_state.manual_vehicle_select_value in available_trucks:
                   current_manual_index = available_trucks.index(st.session_state.manual_vehicle_select_value)
-
-            selected_vehicle = st.selectbox("🚚 차량 선택 (수동):", available_trucks,
-                                             index=current_manual_index,
-                                             key="manual_vehicle_select_widget_tab3_fallback") # 다른 키 사용
-            st.session_state.manual_vehicle_select_value = selected_vehicle # 수동 선택값 업데이트
-
+            selected_vehicle = st.selectbox("🚚 차량 선택 (수동):", available_trucks, index=current_manual_index, key="manual_vehicle_select_widget_tab3_fallback")
+            st.session_state.manual_vehicle_select_value = selected_vehicle
 
     # --- 기타 옵션 ---
     st.divider()
     st.subheader("🛠️ 작업 및 추가 옵션")
-    # (스카이, 추가인원, 폐기물, 날짜 선택 로직은 이전과 동일 - 코드 생략)
+
     # 스카이 사용 여부 및 시간
     uses_sky_from = st.session_state.get('from_method') == "스카이"
     final_dest_method_key = 'final_to_method' if is_storage else 'to_method'
@@ -394,37 +379,49 @@ with tab3:
          col_sky1, col_sky2 = st.columns(2)
          if uses_sky_from:
               with col_sky1:
-                  st.session_state.sky_hours_from = st.number_input(
+                  # 위젯이 세션 상태 sky_hours_from을 직접 업데이트
+                  st.number_input(
                       "출발지 스카이 시간", min_value=2, step=1,
-                      value=st.session_state.sky_hours_from, key="sky_hours_from_input_widget"
+                      key="sky_hours_from", # value 대신 key 사용
+                      # value=st.session_state.sky_hours_from # value 명시 불필요
                   )
          if uses_sky_final_to:
               to_label = "최종 도착지" if is_storage else "도착지"
               with col_sky2:
-                  st.session_state.sky_hours_final = st.number_input(
+                  # 위젯이 세션 상태 sky_hours_final을 직접 업데이트
+                  st.number_input(
                       f"{to_label} 스카이 시간", min_value=2, step=1,
-                      value=st.session_state.sky_hours_final, key="sky_hours_final_input_widget"
+                      key="sky_hours_final", # value 대신 key 사용
+                      # value=st.session_state.sky_hours_final # value 명시 불필요
                   )
 
     # 추가 인원
     col_add1, col_add2 = st.columns(2)
-    with col_add1: additional_men = st.number_input("추가 남성 인원 👨", min_value=0, step=1, key="add_men", value=st.session_state.get("add_men", 0))
-    with col_add2: additional_women = st.number_input("추가 여성 인원 👩", min_value=0, step=1, key="add_women", value=st.session_state.get("add_women", 0))
-    # 입력값 세션 상태 저장 (선택사항)
-    st.session_state.add_men = additional_men
-    st.session_state.add_women = additional_women
-
+    with col_add1:
+        # 위젯이 세션 상태 add_men 을 직접 업데이트
+        st.number_input("추가 남성 인원 👨", min_value=0, step=1, key="add_men") # value 제거
+    with col_add2:
+        # 위젯이 세션 상태 add_women 을 직접 업데이트
+        st.number_input("추가 여성 인원 👩", min_value=0, step=1, key="add_women") # value 제거
+    # ---- 아래 두 줄 제거 ----
+    # st.session_state.add_men = additional_men
+    # st.session_state.add_women = additional_women
 
     # 폐기물 처리
     col_waste1, col_waste2 = st.columns(2)
-    with col_waste1: has_waste = st.checkbox("폐기물 처리 필요 🗑️", key="has_waste_check", value=st.session_state.get("has_waste_check", False))
-    st.session_state.has_waste_check = has_waste # 세션 상태 저장
+    with col_waste1:
+        # 위젯이 세션 상태 has_waste_check 를 직접 업데이트
+        st.checkbox("폐기물 처리 필요 🗑️", key="has_waste_check") # value 제거
+    # ---- 아래 줄 제거 ----
+    # st.session_state.has_waste_check = has_waste
     with col_waste2:
-        waste_tons = 0
-        if has_waste:
-            waste_tons = st.number_input("폐기물 양 (톤)", min_value=0.5, max_value=10.0, value=st.session_state.get("waste_tons_input", 1.0), step=0.5, key="waste_tons_input")
+        waste_tons = 0 # 로컬 변수는 필요시 계속 사용 가능
+        if st.session_state.has_waste_check: # 세션 상태에서 직접 확인
+            # 위젯이 세션 상태 waste_tons_input 를 직접 업데이트
+            waste_tons = st.number_input("폐기물 양 (톤)", min_value=0.5, max_value=10.0, step=0.5, key="waste_tons_input") # value 제거
             st.caption("💡 1톤당 30만원 추가")
-            st.session_state.waste_tons_input = waste_tons # 세션 상태 저장
+            # ---- 아래 줄 제거 ----
+            # st.session_state.waste_tons_input = waste_tons
 
 
     # 날짜 유형 선택
@@ -432,29 +429,32 @@ with tab3:
     date_options = ["이사많은날 🏠", "손없는날 ✋", "월말 📅", "공휴일 🎉"]
     selected_dates = []
     cols_date = st.columns(4)
-    # 각 체크박스 상태 관리 위해 세션 상태 사용 (선택적)
-    if cols_date[0].checkbox(date_options[0], key="date_opt_0_widget", value=st.session_state.get("date_opt_0_widget", False)): selected_dates.append(date_options[0]); st.session_state.date_opt_0_widget = True
-    else: st.session_state.date_opt_0_widget = False
-    if cols_date[1].checkbox(date_options[1], key="date_opt_1_widget", value=st.session_state.get("date_opt_1_widget", False)): selected_dates.append(date_options[1]); st.session_state.date_opt_1_widget = True
-    else: st.session_state.date_opt_1_widget = False
-    if cols_date[2].checkbox(date_options[2], key="date_opt_2_widget", value=st.session_state.get("date_opt_2_widget", False)): selected_dates.append(date_options[2]); st.session_state.date_opt_2_widget = True
-    else: st.session_state.date_opt_2_widget = False
-    if cols_date[3].checkbox(date_options[3], key="date_opt_3_widget", value=st.session_state.get("date_opt_3_widget", False)): selected_dates.append(date_options[3]); st.session_state.date_opt_3_widget = True
-    else: st.session_state.date_opt_3_widget = False
+    # 각 체크박스가 key를 통해 세션 상태를 직접 업데이트
+    if cols_date[0].checkbox(date_options[0], key="date_opt_0_widget"): selected_dates.append(date_options[0])
+    if cols_date[1].checkbox(date_options[1], key="date_opt_1_widget"): selected_dates.append(date_options[1])
+    if cols_date[2].checkbox(date_options[2], key="date_opt_2_widget"): selected_dates.append(date_options[2])
+    if cols_date[3].checkbox(date_options[3], key="date_opt_3_widget"): selected_dates.append(date_options[3])
+    # ---- 체크박스 값에 대한 명시적 세션 상태 할당 제거 ----
 
 
     # --- 비용 계산 ---
     st.divider()
     st.subheader("💵 이사 비용 계산")
-    # (비용 계산 로직은 이전과 동일 - 코드 생략)
+
     total_cost = 0
     calculated_cost_items = []
     base_info = {}
 
     if selected_vehicle:
+        # 비용 계산 시에는 세션 상태에서 값을 직접 읽어옴
+        additional_men_cost = st.session_state.add_men # 세션 상태에서 읽기
+        additional_women_cost = st.session_state.add_women # 세션 상태에서 읽기
+        has_waste_cost = st.session_state.has_waste_check # 세션 상태에서 읽기
+        waste_tons_cost = st.session_state.waste_tons_input if has_waste_cost else 0 # 세션 상태에서 읽기
+
         # 1. 기본 비용
         base_move_cost_type = home_vehicle_prices if st.session_state.base_move_type == "가정 이사 🏠" else office_vehicle_prices
-        base_info = base_move_cost_type.get(selected_vehicle, {"price": 0, "men": 0}) # housewife 기본값 0으로 가정
+        base_info = base_move_cost_type.get(selected_vehicle, {"price": 0, "men": 0})
         if 'housewife' not in base_info: base_info['housewife'] = 0
         base_cost_one_way = base_info.get("price", 0)
 
@@ -479,7 +479,7 @@ with tab3:
              ladder_from_cost = ladder_prices.get(from_floor_range, {}).get(ladder_vehicle_size, 0)
              if ladder_from_cost > 0: total_cost += ladder_from_cost; calculated_cost_items.append(["출발지 사다리차", f"{ladder_from_cost:,}원", f"{st.session_state.get('from_floor')}층"])
         elif from_method == "스카이":
-             sky_from_cost = sky_base_price + max(0, st.session_state.sky_hours_from - 2) * sky_extra_hour_price
+             sky_from_cost = sky_base_price + max(0, st.session_state.sky_hours_from - 2) * sky_extra_hour_price # 세션 상태 값 사용
              total_cost += sky_from_cost; calculated_cost_items.append(["출발지 스카이", f"{sky_from_cost:,}원", f"{st.session_state.sky_hours_from}시간"])
 
         # 도착지 (또는 최종 도착지)
@@ -493,7 +493,7 @@ with tab3:
              ladder_to_cost = ladder_prices.get(to_floor_range, {}).get(ladder_vehicle_size, 0)
              if ladder_to_cost > 0: total_cost += ladder_to_cost; calculated_cost_items.append([f"{to_label} 사다리차", f"{ladder_to_cost:,}원", f"{to_floor}층"])
         elif to_method == "스카이":
-             sky_to_cost = sky_base_price + max(0, st.session_state.sky_hours_final - 2) * sky_extra_hour_price
+             sky_to_cost = sky_base_price + max(0, st.session_state.sky_hours_final - 2) * sky_extra_hour_price # 세션 상태 값 사용
              total_cost += sky_to_cost; calculated_cost_items.append([f"{to_label} 스카이", f"{sky_to_cost:,}원", f"{st.session_state.sky_hours_final}시간"])
 
         # 3. 보관료
@@ -502,17 +502,17 @@ with tab3:
             storage_fee = storage_days * storage_daily_fee
             total_cost += storage_fee; calculated_cost_items.append(["보관료", f"{storage_fee:,}원", f"{storage_days}일"])
 
-        # 4. 추가 인원
-        additional_person_total = (additional_men + additional_women) * additional_person_cost
+        # 4. 추가 인원 (세션 상태 값 사용)
+        additional_person_total = (additional_men_cost + additional_women_cost) * additional_person_cost
         if additional_person_total > 0:
-            total_cost += additional_person_total; calculated_cost_items.append(["추가 인원", f"{additional_person_total:,}원", f"남{additional_men}, 여{additional_women}명"])
+            total_cost += additional_person_total; calculated_cost_items.append(["추가 인원", f"{additional_person_total:,}원", f"남{additional_men_cost}, 여{additional_women_cost}명"])
 
-        # 5. 폐기물
-        if has_waste and waste_tons > 0:
-            waste_cost = waste_tons * waste_disposal_cost
-            total_cost += waste_cost; calculated_cost_items.append(["폐기물 처리", f"{waste_cost:,}원", f"{waste_tons}톤"])
+        # 5. 폐기물 (세션 상태 값 사용)
+        if has_waste_cost and waste_tons_cost > 0:
+            waste_cost = waste_tons_cost * waste_disposal_cost
+            total_cost += waste_cost; calculated_cost_items.append(["폐기물 처리", f"{waste_cost:,}원", f"{waste_tons_cost}톤"])
 
-        # 6. 날짜 할증
+        # 6. 날짜 할증 (selected_dates 는 위젯에서 직접 계산됨)
         special_day_cost_factor = sum(special_day_prices.get(date, 0) for date in selected_dates)
         if special_day_cost_factor > 0:
             total_cost += special_day_cost_factor; calculated_cost_items.append(["날짜 할증", f"{special_day_cost_factor:,}원", f"{', '.join(selected_dates)}"])
@@ -535,7 +535,7 @@ with tab3:
     # --- PDF 견적서 생성 기능 ---
     st.divider()
     st.subheader("📄 견적서 다운로드")
-    # (PDF 생성 로직은 이전과 동일 - 코드 생략)
+    # (PDF 생성 로직은 이전과 거의 동일, 비용 계산 시 사용된 변수명 확인 필요)
     can_generate_pdf = selected_vehicle and (st.session_state.get("customer_name") or st.session_state.get("customer_phone"))
     if st.button("PDF 견적서 생성", disabled=not can_generate_pdf, key="pdf_generate_button"):
         if not selected_vehicle: st.error("PDF 생성을 위해 차량을 선택해주세요.")
@@ -543,8 +543,13 @@ with tab3:
         else:
             buffer = BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=A4)
+            # (폰트 설정 등 PDF 세부 로직은 이전과 동일 - 생략)
+            # ... PDF elements generation using session state values ...
+            # 예시: 작업 정보에서 추가 인원 가져올 때 세션 상태 사용
+            # work_data.append(["추가 인원", f"남 {st.session_state.add_men}명, 여 {st.session_state.add_women}명"])
+            # ... rest of PDF generation ...
 
-            # 폰트 설정
+            # --- PDF 내용 구성 시작 ---
             font_path = "NanumGothic.ttf"
             font_registered = False
             try:
@@ -559,13 +564,13 @@ with tab3:
                     except: pass
 
             elements = []
-            # PDF 내용 구성 (생략 - 이전 코드와 동일)
+
             # 1. 제목
             title = "보관이사 견적서" if is_storage else "이사 견적서"
             elements.append(Paragraph(title, styles["Title"]))
             elements.append(Spacer(1, 20))
 
-            # 2. 기본 정보 (견적일 다시 계산)
+            # 2. 기본 정보
             try: kst = pytz.timezone("Asia/Seoul"); estimate_date_pdf = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
             except: estimate_date_pdf = datetime.now().strftime("%Y-%m-%d %H:%M")
             elements.append(Paragraph("■ 기본 정보", styles["Heading2"]))
@@ -581,7 +586,7 @@ with tab3:
             if is_storage:
                 basic_data.append(["보관기간", f"{st.session_state.get('storage_duration', 1)}일"])
                 basic_data.append(["최종 도착지", st.session_state.get("final_to_location", "미입력")])
-            basic_data.append(["견적일", estimate_date_pdf]) # PDF 생성 시점 기준
+            basic_data.append(["견적일", estimate_date_pdf])
             basic_table = Table(basic_data, colWidths=[100, 350])
             basic_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),('GRID', (0, 0), (-1, -1), 1, colors.black),('ALIGN', (0, 0), (-1, -1), "LEFT"),('VALIGN', (0, 0), (-1, -1), "MIDDLE"),('FONTNAME', (0, 0), (-1, -1), styles["Normal"].fontName),('BOTTOMPADDING', (0, 0), (-1, -1), 6),('TOPPADDING', (0, 0), (-1, -1), 6)]))
             elements.append(basic_table); elements.append(Spacer(1, 12))
@@ -597,17 +602,20 @@ with tab3:
             ]
             if is_storage:
                 work_data.append(["최종 도착지 작업", f"{st.session_state.get('final_to_floor', '?')}층 ({st.session_state.get('final_to_method', '?')})"])
+            # PDF 생성 시점의 세션 상태 값 사용
+            pdf_add_men = st.session_state.get('add_men', 0)
+            pdf_add_women = st.session_state.get('add_women', 0)
             work_data.append(["기본 인원", f"남 {base_info.get('men', 0)}명" + (f", 여 {base_info.get('housewife', 0)}명" if base_info.get('housewife', 0) > 0 else "")])
-            work_data.append(["추가 인원", f"남 {additional_men}명, 여 {additional_women}명"])
+            work_data.append(["추가 인원", f"남 {pdf_add_men}명, 여 {pdf_add_women}명"])
             work_table = Table(work_data, colWidths=[100, 350])
             work_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),('GRID', (0, 0), (-1, -1), 1, colors.black),('ALIGN', (0, 0), (-1, -1), "LEFT"),('VALIGN', (0, 0), (-1, -1), "MIDDLE"),('FONTNAME', (0, 0), (-1, -1), styles["Normal"].fontName),('BOTTOMPADDING', (0, 0), (-1, -1), 6),('TOPPADDING', (0, 0), (-1, -1), 6)]))
             elements.append(work_table); elements.append(Spacer(1, 12))
 
-            # 4. 비용 상세 내역
+            # 4. 비용 상세 내역 (calculated_cost_items 사용)
             elements.append(Paragraph("■ 비용 상세 내역", styles["Heading2"]))
             elements.append(Spacer(1, 5))
             cost_data_pdf = [["항목", "금액", "비고"]]
-            cost_data_pdf.extend(calculated_cost_items) # 계산된 내역 사용
+            cost_data_pdf.extend(calculated_cost_items)
             cost_data_pdf.append(["총 견적 비용", f"{total_cost:,}원", ""])
             cost_table = Table(cost_data_pdf, colWidths=[150, 100, 200])
             cost_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey), ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey), ('GRID', (0, 0), (-1, -1), 1, colors.black), ('ALIGN', (0, 0), (-1, -1), "LEFT"), ('ALIGN', (1, 1), (1, -1), "RIGHT"), ('VALIGN', (0, 0), (-1, -1), "MIDDLE"), ('FONTNAME', (0, 0), (-1, -1), styles["Normal"].fontName), ('FONTNAME', (0, 0), (-1, 0), styles["Normal"].fontName), ('FONTNAME', (0, -1), (-1, -1), styles["Normal"].fontName), ('BOTTOMPADDING', (0, 0), (-1, -1), 6), ('TOPPADDING', (0, 0), (-1, -1), 6)]))
@@ -637,16 +645,4 @@ with tab3:
          st.caption("PDF를 생성하려면 고객명/전화번호 입력 및 차량 선택이 필요합니다.")
 
 
-# --- 탭 네비게이션 버튼 제거 ---
-# st.divider()
-# cols_nav = st.columns([1, 5, 1])
-# if st.session_state.active_tab_index > 0:
-#     if cols_nav[0].button("⬅️ 이전 단계", key="prev_tab_button"):
-#         # st.session_state.active_tab_index -= 1 # 상태 변경 제거
-#         # st.experimental_rerun() # 제거
-#         pass # 버튼은 보이되 기능 X, 또는 버튼 자체를 제거
-# if st.session_state.active_tab_index < len(tabs) - 1:
-#     if cols_nav[2].button("다음 단계 ➡️", key="next_tab_button"):
-#         # st.session_state.active_tab_index += 1 # 상태 변경 제거
-#         # st.experimental_rerun() # 제거
-#         pass # 버튼은 보이되 기능 X, 또는 버튼 자체를 제거
+# --- (탭 네비게이션 버튼은 제거됨) ---
