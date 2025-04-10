@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
@@ -252,7 +253,7 @@ def generate_pdf(state_data, calculated_cost_items, total_cost):
 
     elements = []
     is_storage = state_data.get("is_storage_move", False)
-    selected_vehicle = state_data.get("final_selected_vehicle") # 최종 선택된 차량 사용
+    selected_vehicle_pdf = state_data.get("final_selected_vehicle") # 최종 선택된 차량 사용
 
     title = "보관이사 견적서" if is_storage else "이사 견적서"
     elements.append(Paragraph(title, title_style))
@@ -277,7 +278,7 @@ def generate_pdf(state_data, calculated_cost_items, total_cost):
         basic_data.append(["최종 도착지", state_data.get("final_to_location", "미입력")])
     basic_data.append(["견적일", get_current_kst_time_str()])
     if state_data.get("apply_long_distance"):
-         basic_data.append(["장거리", state_data.get("long_distance_selector", "미입력")])
+        basic_data.append(["장거리", state_data.get("long_distance_selector", "미입력")])
 
     basic_table = Table(basic_data, colWidths=[100, 350])
     basic_table.setStyle(TableStyle([
@@ -294,32 +295,34 @@ def generate_pdf(state_data, calculated_cost_items, total_cost):
     # 2. 작업 정보
     elements.append(Paragraph("■ 작업 정보", heading2_style))
     elements.append(Spacer(1, 5))
-    to_work_label_pdf = "보관지 작업" if is_storage else "도착지 작업"
-    final_dest_prefix = "final_" if is_storage else ""
-
+    # <수정됨> 보관이사 시 '보관지 작업' 항목 제거 (층수/방법 입력이 없어졌으므로)
+    to_work_label_pdf = "도착지 작업" # 일반 이사 기준 레이블
     work_data = [
-        ["선택 차량", selected_vehicle or "미선택"],
+        ["선택 차량", selected_vehicle_pdf or "미선택"],
         ["출발지 작업", f"{state_data.get('from_floor', '?')}층 ({state_data.get('from_method', '?')})"],
-        [to_work_label_pdf, f"{state_data.get('to_floor', '?')}층 ({state_data.get('to_method', '?')})"],
     ]
+    # 보관이사가 아닐 경우에만 도착지 작업 정보 추가
+    if not is_storage:
+         work_data.append([to_work_label_pdf, f"{state_data.get('to_floor', '?')}층 ({state_data.get('to_method', '?')})"])
+    # 보관이사일 경우 최종 도착지 정보 추가
     if is_storage:
         work_data.append(["최종 도착지 작업", f"{state_data.get('final_to_floor', '?')}층 ({state_data.get('final_to_method', '?')})"])
 
     # 기본 인원 정보 가져오기
-    base_info = {}
-    if selected_vehicle:
-        base_move_cost_type = vehicle_prices.get(state_data.get('base_move_type'), {})
-        base_info = base_move_cost_type.get(selected_vehicle, {"price": 0, "men": 0, "housewife": 0})
+    base_info_pdf = {}
+    if selected_vehicle_pdf:
+        base_move_cost_type_pdf = vehicle_prices.get(state_data.get('base_move_type'), {})
+        base_info_pdf = base_move_cost_type_pdf.get(selected_vehicle_pdf, {"price": 0, "men": 0, "housewife": 0})
 
-    base_men = base_info.get('men', 0)
-    base_women = base_info.get('housewife', 0)
-    base_personnel_str = f"남 {base_men}명" + (f", 여 {base_women}명" if base_women > 0 else "")
-    work_data.append(["기본 인원", base_personnel_str])
+    base_men_pdf = base_info_pdf.get('men', 0)
+    base_women_pdf = base_info_pdf.get('housewife', 0)
+    base_personnel_str_pdf = f"남 {base_men_pdf}명" + (f", 여 {base_women_pdf}명" if base_women_pdf > 0 else "")
+    work_data.append(["기본 인원", base_personnel_str_pdf])
 
     pdf_add_men = state_data.get('add_men', 0)
     pdf_add_women = state_data.get('add_women', 0)
-    add_personnel_str = f"남 {pdf_add_men}명, 여 {pdf_add_women}명" if (pdf_add_men > 0 or pdf_add_women > 0) else "없음"
-    work_data.append(["추가 인원", add_personnel_str])
+    add_personnel_str_pdf = f"남 {pdf_add_men}명, 여 {pdf_add_women}명" if (pdf_add_men > 0 or pdf_add_women > 0) else "없음"
+    work_data.append(["추가 인원", add_personnel_str_pdf])
 
     work_data.append(["예상 박스 수량", f"{state_data.get('final_box_count', 0)} 개"])
     work_data.append(["예상 바구니 수량", f"{state_data.get('final_basket_count', 0)} 개"])
@@ -396,7 +399,7 @@ def initialize_session_state():
         "vehicle_select_radio": "자동 추천 차량 사용",
         "manual_vehicle_select_value": None,
         "final_selected_vehicle": None, # < 추가: 최종 선택된 차량 저장용 >
-        "sky_hours_from": 2, "sky_hours_final": 2,
+        "sky_hours_from": 2, "sky_hours_final": 2, # <수정됨> 'to'를 'final'로 통일
         "add_men": 0, "add_women": 0,
         "has_waste_check": False, "waste_tons_input": 0.5,
         "date_opt_0_widget": False, "date_opt_1_widget": False, "date_opt_2_widget": False, "date_opt_3_widget": False,
@@ -409,11 +412,11 @@ def initialize_session_state():
             st.session_state[key] = value
 
     # 이사 유형별 품목 수량 초기화
-    current_move_type = st.session_state.base_move_type
-    current_items_def = item_definitions.get(current_move_type, {})
-    for section, item_list in current_items_def.items():
+    current_move_type_init = st.session_state.base_move_type # Use a different name to avoid conflict
+    current_items_def_init = item_definitions.get(current_move_type_init, {})
+    for section, item_list in current_items_def_init.items():
         for item in item_list:
-            widget_key = f"qty_{current_move_type}_{section}_{item}"
+            widget_key = f"qty_{current_move_type_init}_{section}_{item}"
             if widget_key not in st.session_state:
                 st.session_state[widget_key] = 0
 
@@ -464,11 +467,16 @@ with tab1:
         from_method_index = METHOD_OPTIONS.index(st.session_state.from_method) if st.session_state.from_method in METHOD_OPTIONS else 0
         st.selectbox("🛗 출발지 작업 방법", METHOD_OPTIONS, index=from_method_index, key="from_method")
     with col4:
-        to_floor_label = "보관지 층수" if st.session_state.is_storage_move else "도착지 층수"
-        to_method_label = "보관지 작업 방법" if st.session_state.is_storage_move else "도착지 작업 방법"
-        st.text_input(f"{'🏢' if st.session_state.is_storage_move else '🔽'} {to_floor_label}", key="to_floor", placeholder="예: 5")
-        to_method_index = METHOD_OPTIONS.index(st.session_state.to_method) if st.session_state.to_method in METHOD_OPTIONS else 0
-        st.selectbox(f"🛠️ {to_method_label}", METHOD_OPTIONS, index=to_method_index, key="to_method")
+        # <수정됨> 보관이사 시에는 '도착지(보관지)' 층수/방법 입력을 표시하지 않음
+        if not st.session_state.is_storage_move:
+            to_floor_label = "도착지 층수"
+            to_method_label = "도착지 작업 방법"
+            st.text_input(f"🔽 {to_floor_label}", key="to_floor", placeholder="예: 5")
+            to_method_index = METHOD_OPTIONS.index(st.session_state.to_method) if st.session_state.to_method in METHOD_OPTIONS else 0
+            st.selectbox(f"🛠️ {to_method_label}", METHOD_OPTIONS, index=to_method_index, key="to_method")
+        else:
+            st.info("보관이사 선택됨. 보관지 정보는 '보관이사 추가 정보'에서 입력하세요.", icon="ℹ️")
+
 
     if st.session_state.is_storage_move:
         st.divider()
@@ -542,7 +550,7 @@ with tab2:
             if spec:
                 st.caption(f"({recommended_vehicle_display} 최대: {spec['capacity']}m³, {spec['weight_capacity']:,}kg)")
         elif recommended_vehicle_display and "초과" in recommended_vehicle_display:
-             st.error(f"🚛 추천 차량: **{recommended_vehicle_display}**. 더 큰 차량 필요 또는 물량 조절 필요.")
+                st.error(f"🚛 추천 차량: **{recommended_vehicle_display}**. 더 큰 차량 필요 또는 물량 조절 필요.")
         else:
             st.warning("🚛 추천 차량: 자동 추천 불가 (물량이 없거나 차량 정보 부족).")
     else:
@@ -566,8 +574,8 @@ with tab3:
             key="vehicle_select_radio"
         )
 
-    # < 개선: 선택 로직 명확화 및 세션 상태 활용 >
-    selected_vehicle = None # 최종적으로 확정된 차량
+    # <변경됨> 차량 선택 로직: selected_vehicle_determined 지역 변수 사용 후 세션 상태 업데이트
+    selected_vehicle_determined = None # 이 블록에서 결정될 차량 (지역 변수)
     recommended_vehicle_auto = st.session_state.recommended_vehicle_auto # 탭 2에서 계산된 추천 차량
     vehicle_prices_options = vehicle_prices.get(current_move_type, {})
     available_trucks = sorted(vehicle_prices_options.keys(), key=lambda x: vehicle_specs.get(x, {}).get("capacity", 0))
@@ -578,22 +586,21 @@ with tab3:
 
         if use_auto:
             if valid_auto_recommendation:
-                selected_vehicle = recommended_vehicle_auto
-                st.success(f"자동 선택된 차량: **{selected_vehicle}**")
-                spec = vehicle_specs.get(selected_vehicle)
+                selected_vehicle_determined = recommended_vehicle_auto
+                st.success(f"자동 선택된 차량: **{selected_vehicle_determined}**")
+                spec = vehicle_specs.get(selected_vehicle_determined)
                 if spec:
-                    st.caption(f"({selected_vehicle} 최대: {spec['capacity']}m³, {spec['weight_capacity']:,}kg)")
+                    st.caption(f"({selected_vehicle_determined} 최대: {spec['capacity']}m³, {spec['weight_capacity']:,}kg)")
                     st.caption(f"현재 물량: {st.session_state.total_volume:.2f} m³ ({st.session_state.total_weight:.2f} kg)")
             else:
                 st.error(f"자동 추천 차량({recommended_vehicle_auto}) 사용 불가. 수동 선택 필요.")
-                # 자동 추천이 실패하면 수동 선택 모드로 강제 전환 (선택적 UI 개선)
-                # st.session_state.vehicle_select_radio = "수동으로 차량 선택"
-                # st.experimental_rerun() # 강제 전환 시 필요
+                selected_vehicle_determined = None # 자동 추천 실패 시 선택 없음으로 설정
 
         # 수동 선택 모드이거나, 자동 추천이 유효하지 않은 경우
         if not use_auto or (use_auto and not valid_auto_recommendation):
             if not available_trucks:
                 st.error("선택 가능한 차량 정보가 없습니다.")
+                selected_vehicle_determined = None
             else:
                 # 수동 선택 시 기본값 설정 (기존 선택값 > 자동추천값 > 첫번째 차량)
                 default_manual_vehicle = st.session_state.manual_vehicle_select_value
@@ -605,17 +612,25 @@ with tab3:
 
                 current_manual_index = available_trucks.index(default_manual_vehicle) if default_manual_vehicle in available_trucks else 0
 
-                selected_vehicle = st.selectbox("🚚 차량 선택 (수동):", available_trucks, index=current_manual_index, key="manual_vehicle_select_value")
-                st.info(f"수동 선택 차량: **{selected_vehicle}**")
-                spec = vehicle_specs.get(selected_vehicle)
+                # <수정됨> 수동 선택 selectbox가 변경될 때마다 selected_vehicle_determined가 업데이트됨
+                selected_vehicle_determined = st.selectbox(
+                    "🚚 차량 선택 (수동):", available_trucks,
+                    index=current_manual_index,
+                    key="manual_vehicle_select_value" # 이 key의 값이 변경되면 rerun됨
+                 )
+                st.info(f"수동 선택 차량: **{selected_vehicle_determined}**")
+                spec = vehicle_specs.get(selected_vehicle_determined)
                 if spec:
-                    st.caption(f"({selected_vehicle} 최대: {spec['capacity']}m³, {spec['weight_capacity']:,}kg)")
+                    st.caption(f"({selected_vehicle_determined} 최대: {spec['capacity']}m³, {spec['weight_capacity']:,}kg)")
                     st.caption(f"현재 물량: {st.session_state.total_volume:.2f} m³ ({st.session_state.total_weight:.2f} kg)")
 
-    # < 최종 선택된 차량 및 박스/바구니 수량 세션 상태 업데이트 >
-    st.session_state.final_selected_vehicle = selected_vehicle
-    if selected_vehicle:
-        st.session_state.final_box_count, st.session_state.final_basket_count = calculate_boxes_baskets(selected_vehicle)
+    # <변경됨> 결정된 차량을 세션 상태에 최종 저장 (이 시점의 값으로 이후 계산 수행)
+    st.session_state.final_selected_vehicle = selected_vehicle_determined
+
+    # <변경됨> 박스/바구니 수량 업데이트 시 final_selected_vehicle 사용
+    final_vehicle_for_counts = st.session_state.final_selected_vehicle
+    if final_vehicle_for_counts:
+        st.session_state.final_box_count, st.session_state.final_basket_count = calculate_boxes_baskets(final_vehicle_for_counts)
     else:
         st.session_state.final_box_count, st.session_state.final_basket_count = 0, 0
 
@@ -632,9 +647,11 @@ with tab3:
         col_sky1, col_sky2 = st.columns(2)
         if uses_sky_from:
             with col_sky1: st.number_input("출발지 스카이 시간 (기본 2시간)", min_value=2, step=1, key="sky_hours_from")
-        if uses_sky_final_to:
-            to_label = "최종 도착지" if is_storage else "도착지"
-            with col_sky2: st.number_input(f"{to_label} 스카이 시간 (기본 2시간)", min_value=2, step=1, key="sky_hours_final")
+        # <수정됨> 보관 이사 시 최종 도착지에만 스카이 옵션 표시 (보관지 자체는 제외)
+        if uses_sky_final_to and not (is_storage and final_dest_method_key == 'to_method'): # 'to_method'가 스카이면서 보관이사일 때는 최종 도착지가 아니므로 제외
+            to_label_sky = "최종 도착지" if is_storage else "도착지"
+            with col_sky2: st.number_input(f"{to_label_sky} 스카이 시간 (기본 2시간)", min_value=2, step=1, key="sky_hours_final")
+
 
     # 추가 인원 및 기본 여성 제외 옵션
     col_add1, col_add2 = st.columns(2)
@@ -644,10 +661,12 @@ with tab3:
         st.number_input("추가 여성 인원 👩", min_value=0, step=1, key="add_women")
 
     # 기본 여성 인원 제외 체크박스 (조건부 표시)
+    # <변경됨> 체크박스 표시 여부 결정 시 final_selected_vehicle 사용
     base_women_count = 0
     show_remove_option = False
-    if current_move_type == "가정 이사 🏠" and selected_vehicle:
-        base_info_for_check = vehicle_prices.get(current_move_type, {}).get(selected_vehicle, {})
+    final_vehicle_for_options = st.session_state.final_selected_vehicle
+    if current_move_type == "가정 이사 🏠" and final_vehicle_for_options:
+        base_info_for_check = vehicle_prices.get(current_move_type, {}).get(final_vehicle_for_options, {})
         base_women_count = base_info_for_check.get('housewife', 0)
         if base_women_count > 0:
             show_remove_option = True
@@ -657,7 +676,7 @@ with tab3:
     else:
         # 관련 없는 상태 초기화 (체크박스가 안보일 때)
         if st.session_state.remove_base_housewife:
-             st.session_state.remove_base_housewife = False
+            st.session_state.remove_base_housewife = False
 
     # 폐기물 처리 옵션
     col_waste1, col_waste2 = st.columns(2)
@@ -676,7 +695,7 @@ with tab3:
     date_keys = ["date_opt_0_widget", "date_opt_1_widget", "date_opt_2_widget", "date_opt_3_widget"]
     for i, option in enumerate(date_options):
         if cols_date[i].checkbox(option, key=date_keys[i]):
-             selected_dates.append(option)
+            selected_dates.append(option)
 
     # --- 비용 계산 ---
     st.divider()
