@@ -219,9 +219,23 @@ with tab1:
     # 보관이사 및 장거리 이사 여부
     col_check1, col_check2 = st.columns(2)
     with col_check1:
-        st.checkbox("📦 보관이사 여부", key="is_storage_move_checkbox_widget")
+        st.checkbox("📦 보관이사 여부", key="is_storage_move_checkbox_widget") # 보관이사 관련
     with col_check2:
-        st.checkbox("🛣️ 장거리 이사 적용", key="apply_long_distance") # 장거리 체크박스 위치 변경
+        # <<< 1. 바로 이 체크박스입니다 >>>
+        # 이 체크박스의 상태(`apply_long_distance`)가 아래 드롭다운의 표시 여부를 결정합니다.
+        st.checkbox("🛣️ 장거리 이사 적용", key="apply_long_distance")
+        # (이전에 제안했던 'disabled' 옵션은 필요 없습니다)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        # ... (고객명, 출발지, 이사일 등) ...
+
+        # <<< 2. 체크박스가 선택되면 이 부분이 실행됩니다 >>>
+        # st.session_state.apply_long_distance 가 True 일 때만 아래 selectbox가 나타납니다.
+        if st.session_state.apply_long_distance:
+            st.selectbox("🛣️ 장거리 구간 선택", long_distance_options,
+                         index=long_distance_options.index(st.session_state.long_distance),
+                         key="long_distance")
 
 
     col1, col2 = st.columns(2)
