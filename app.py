@@ -171,7 +171,8 @@ default_values = {
     "moving_date": datetime.now().date(), "from_floor": "", "from_method": "사다리차 🪜",
     "to_floor": "", "to_method": "사다리차 🪜", "special_notes": "",
     "storage_duration": 1, "final_to_location": "", "final_to_floor": "", "final_to_method": "사다리차 🪜",
-    "long_distance": long_distance_options[0], # 기본값 "선택 안 함"
+    # "long_distance": long_distance_options[0], # <<< 기존 키 주석 처리 또는 삭제
+    "long_distance_selector": long_distance_options[0], # <<< 수정됨: 새로운 키와 기본값 설정
     "vehicle_select_radio": "자동 추천 차량 사용",
     "manual_vehicle_select_value": None,
     "sky_hours_from": 2,
@@ -191,6 +192,7 @@ for key, value in default_values.items():
         st.session_state[key] = value
 
 # 이사 유형별 품목 리스트 생성 및 초기화 (세션 상태에 없으면 0으로)
+# (이 부분은 변경 없음)
 item_category_to_init = home_items_def if st.session_state.base_move_type == "가정 이사 🏠" else office_items_def
 for section, item_list in item_category_to_init.items():
     for item in item_list:
@@ -208,7 +210,7 @@ tab1, tab2, tab3 = st.tabs(["고객 정보", "물품 선택", "견적 및 비용
 with tab1:
     st.header("📝 고객 기본 정보")
 
-    # 이사 유형 선택
+    # 이사 유형 선택 (변경 없음)
     base_move_type_options = ["가정 이사 🏠", "사무실 이사 🏢"]
     st.session_state.base_move_type = st.radio(
         "🏢 기본 이사 유형:", base_move_type_options,
@@ -219,23 +221,10 @@ with tab1:
     # 보관이사 및 장거리 이사 여부
     col_check1, col_check2 = st.columns(2)
     with col_check1:
-        st.checkbox("📦 보관이사 여부", key="is_storage_move_checkbox_widget") # 보관이사 관련
+        st.checkbox("📦 보관이사 여부", key="is_storage_move_checkbox_widget") # 변경 없음
     with col_check2:
-        # <<< 1. 바로 이 체크박스입니다 >>>
-        # 이 체크박스의 상태(`apply_long_distance`)가 아래 드롭다운의 표시 여부를 결정합니다.
+        # <<< 수정됨: 'disabled' 속성 제거 (원래대로 복구) >>>
         st.checkbox("🛣️ 장거리 이사 적용", key="apply_long_distance")
-        # (이전에 제안했던 'disabled' 옵션은 필요 없습니다)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        # ... (고객명, 출발지, 이사일 등) ...
-
-        # <<< 2. 체크박스가 선택되면 이 부분이 실행됩니다 >>>
-        # st.session_state.apply_long_distance 가 True 일 때만 아래 selectbox가 나타납니다.
-        if st.session_state.apply_long_distance:
-            st.selectbox("🛣️ 장거리 구간 선택", long_distance_options,
-                         index=long_distance_options.index(st.session_state.long_distance),
-                         key="long_distance")
 
 
     col1, col2 = st.columns(2)
@@ -243,17 +232,25 @@ with tab1:
         st.text_input("👤 고객명", key="customer_name")
         st.text_input("📍 출발지", key="from_location")
         st.date_input("🚚 이사일 (출발일)", key="moving_date")
+
         # 장거리 이사 옵션 (체크 시 활성화)
-        if st.session_state.apply_long_distance:
+        if st.session_state.apply_long_distance: # 이 조건은 그대로 유지
+             # <<< 수정됨: 새로운 키("long_distance_selector")를 사용하여 현재 값과 인덱스 계산 >>>
+            current_long_distance_value = st.session_state.get("long_distance_selector", long_distance_options[0])
+            current_index = 0
+            if current_long_distance_value in long_distance_options:
+                current_index = long_distance_options.index(current_long_distance_value)
+
             st.selectbox("🛣️ 장거리 구간 선택", long_distance_options,
-                         index=long_distance_options.index(st.session_state.long_distance), # 세션 상태 반영
-                         key="long_distance") # key 유지
+                         index=current_index,         # <<< 수정됨 >>>
+                         key="long_distance_selector") # <<< 수정됨: key 변경 >>>
 
     with col2:
         st.text_input("📞 전화번호", key="customer_phone", placeholder="01012345678")
         to_location_label = "보관지" if st.session_state.is_storage_move else "도착지"
         st.text_input(f"📍 {to_location_label}", key="to_location")
 
+        # 견적일 표시 (변경 없음)
         try:
             kst = pytz.timezone("Asia/Seoul")
             estimate_date = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
@@ -721,10 +718,10 @@ with tab3:
             customer_display_name = st.session_state.get("customer_name") or st.session_state.get("customer_phone") or "미입력"
             to_location_label_pdf = "보관지" if is_storage else "도착지"
             basic_data = [
-                ["고객명", customer_display_name], ["전화번호", st.session_state.get("customer_phone", "미입력")],
-                ["이사일(출발)", str(st.session_state.get("moving_date", "미입력"))],
-                ["출발지", st.session_state.get("from_location", "미입력")],
-                [to_location_label_pdf, st.session_state.get("to_location", "미입력")],
+                 ["고객명", customer_display_name], ["전화번호", st.session_state.get("customer_phone", "미입력")],
+                 ["이사일(출발)", str(st.session_state.get("moving_date", "미입력"))],
+                 ["출발지", st.session_state.get("from_location", "미입력")],
+                 [to_location_label_pdf, st.session_state.get("to_location", "미입력")],
             ]
             if is_storage:
                 basic_data.append(["보관기간", f"{st.session_state.get('storage_duration', 1)}일"])
